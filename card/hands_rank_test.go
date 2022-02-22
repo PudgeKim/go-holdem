@@ -1,10 +1,32 @@
 package card
 
-import "testing"
+import (
+	"testing"
+)
 
-var cards[] Card
+var cards []Card
 var res bool
 var highCard Rank
+
+func TestMakeAllCombinations(t *testing.T) {
+	cards = []Card{
+		{symbol: Diamond, rank: Three},
+		{symbol: Diamond, rank: Four},
+		{symbol: Spade, rank: Five},
+		{symbol: Heart, rank: Five},
+		{symbol: Diamond, rank: Nine},
+		{symbol: Spade, rank: Queen},
+		{symbol: Spade, rank: Ace},
+	}
+
+	var tmpCards []Card
+	var allCombs [][]Card
+	makeAllCombinations(cards, tmpCards, &allCombs, 0, 0)
+	if len(allCombs) != 21 {
+		t.Error("All combination's length should be 21 (7C5)")
+	}
+
+}
 
 func TestRoyalStraightFlush(t *testing.T) {
 	cards = []Card{
@@ -367,7 +389,7 @@ func TestOnePair(t *testing.T) {
 	if !res {
 		t.Error("It should be OnePair")
 	}
-	if highCard != Two{
+	if highCard != Two {
 		t.Error("highCard should be Two")
 	}
 

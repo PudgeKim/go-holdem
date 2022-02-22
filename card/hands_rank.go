@@ -14,9 +14,28 @@ const (
 	StraightFlush
 	RoyalStraightFlush
 )
+
+// 7장의 카드로 만들 수 있는 5장의 모든 조합
+// cards는 7장의 카드
+// tmpCards는 allComb에 저장하기 전 임시 배열
+// allComb는 처음에는 빈 배열로 함수가 끝나면 모든 조합이 들어가게됨
+func makeAllCombinations(cards []Card, tmpCards []Card, allComb *[][]Card, lv int, startIdx int) {
+	if lv == 5 {
+		*allComb = append(*allComb, tmpCards)
+		return
+	}
+
+	for i := startIdx; i < len(cards); i++ {
+		tmpCards = append(tmpCards, cards[i])
+		makeAllCombinations(cards, tmpCards, allComb, lv+1, i+1)
+		tmpCards = tmpCards[:len(tmpCards)-1]
+	}
+
+}
+
 // ******
 // 아래 함수들은 인자로 들어오는 cards가 정렬이 되어있다고 가정함
-// 리턴 값에서 Rank는 예를 들어서 4, 2 투페어인 경우 리턴되는 Rank 값은 4임
+// 리턴 값에서 Rank는 예를 들어 4, 2 투페어인 경우 리턴되는 Rank 값은 4임
 // ******
 
 func isRoyalStraightFlush(cards []Card) (bool, Rank) {
@@ -24,11 +43,11 @@ func isRoyalStraightFlush(cards []Card) (bool, Rank) {
 		return false, None
 	}
 
-	for i:=1; i<5; i++ {
+	for i := 1; i < 5; i++ {
 		if cards[i].symbol != cards[i-1].symbol {
 			return false, None
 		}
-		if cards[i].rank != cards[i-1].rank + 1 {
+		if cards[i].rank != cards[i-1].rank+1 {
 			return false, None
 		}
 	}
@@ -49,11 +68,11 @@ func isStraightFlush(cards []Card) (bool, Rank) {
 		}
 
 		// 마지막 카드는 A인걸 확인했으니 첫번째부터 네번째까지 검사해봄
-		for i:=1; i<4; i++ {
+		for i := 1; i < 4; i++ {
 			if cards[i].symbol != cards[i-1].symbol {
 				return false, None
 			}
-			if cards[i].rank != cards[i-1].rank + 1 {
+			if cards[i].rank != cards[i-1].rank+1 {
 				return false, None
 			}
 		}
@@ -62,11 +81,11 @@ func isStraightFlush(cards []Card) (bool, Rank) {
 		return true, Five
 	}
 	// A로 시작하지 않는 경우
-	for i:=1; i<5; i++ {
+	for i := 1; i < 5; i++ {
 		if cards[i].symbol != cards[i-1].symbol {
 			return false, None
 		}
-		if cards[i].rank != cards[i-1].rank + 1 {
+		if cards[i].rank != cards[i-1].rank+1 {
 			return false, None
 		}
 	}
@@ -111,7 +130,7 @@ func isFullHouse(cards []Card) (bool, Rank) {
 }
 
 func isFlush(cards []Card) (bool, Rank) {
-	for i:=1; i<5; i++ {
+	for i := 1; i < 5; i++ {
 		if cards[i].symbol != cards[i-1].symbol {
 			return false, None
 		}
@@ -131,8 +150,8 @@ func isStraight(cards []Card) (bool, Rank) {
 	}
 
 	// A가 포함되지 않은 경우
-	for i:=1; i<5; i++ {
-		if cards[i].rank != cards[i-1].rank + 1 {
+	for i := 1; i < 5; i++ {
+		if cards[i].rank != cards[i-1].rank+1 {
 			return false, None
 		}
 	}
@@ -177,11 +196,11 @@ func isTwoPair(cards []Card) (bool, Rank) {
 	return false, None
 }
 
-// 아래처럼 검사하면 twoPair나 triple도 onePair로 취급되지만
+// 이 함수의 경우 twoPair나 triple도 onePair로 취급되지만
 // 나중에 검사를 할 때 royalStraightFlush부터
 // 쭉 아래로 검사를 하기때문에 상관없음
 func isOnePair(cards []Card) (bool, Rank) {
-	for i:=1; i<5; i++ {
+	for i := 1; i < 5; i++ {
 		if cards[i].rank == cards[i-1].rank {
 			return true, cards[i].rank
 		}

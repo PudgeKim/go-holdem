@@ -1,15 +1,19 @@
 package main
 
-import (
-	"fmt"
-	"github.com/PudgeKim/card"
-)
+import "fmt"
 
+func makeNum(lv int, numList []int, res *[]int) {
+	if lv < 5 {
+		return
+	}
+	for i := 0; i < len(numList); i++ {
+		*res = append(*res, numList[i])
+
+	}
+}
 func main() {
-	deck := card.NewDeck()
-	fmt.Println(deck)
-	card := deck.GetCard()
-	fmt.Println(card)
-	fmt.Println(deck)
-
+	nums := []int{1, 2, 3, 4, 5, 6, 7}
+	var res []int
+	makeNum(0, nums, &res)
+	fmt.Println(res)
 }
