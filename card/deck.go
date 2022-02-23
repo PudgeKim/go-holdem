@@ -14,8 +14,8 @@ func NewDeck() deck {
 	for i := 2; i < 15; i++ {
 		for j := 0; j < 4; j++ {
 			c := Card{
-				symbol: symbols[j],
-				rank:   Rank(i),
+				Symbol: symbols[j],
+				Rank:   Rank(i),
 			}
 			d = append(d, c)
 		}

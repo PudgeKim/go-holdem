@@ -1,6 +1,8 @@
 package card
 
 import (
+	"fmt"
+	"reflect"
 	"testing"
 )
 
@@ -10,31 +12,62 @@ var highCard Rank
 
 func TestMakeAllCombinations(t *testing.T) {
 	cards = []Card{
-		{symbol: Diamond, rank: Three},
-		{symbol: Diamond, rank: Four},
-		{symbol: Spade, rank: Five},
-		{symbol: Heart, rank: Five},
-		{symbol: Diamond, rank: Nine},
-		{symbol: Spade, rank: Queen},
-		{symbol: Spade, rank: Ace},
+		{Symbol: Spade, Rank: Queen},
+		{Symbol: Heart, Rank: Six},
+		{Symbol: Diamond, Rank: Ace},
+		{Symbol: Spade, Rank: King},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Clover, Rank: Three},
+		{Symbol: Clover, Rank: Two},
 	}
 
-	var tmpCards []Card
 	var allCombs [][]Card
-	makeAllCombinations(cards, tmpCards, &allCombs, 0, 0)
+
+	makeAllCombinations(cards, []Card{}, &allCombs, 0, 0)
+
 	if len(allCombs) != 21 {
 		t.Error("All combination's length should be 21 (7C5)")
+	}
+}
+
+func TestGetBestHandsRank(t *testing.T) {
+	cards = []Card{
+		{Symbol: Spade, Rank: Queen},
+		{Symbol: Heart, Rank: Six},
+		{Symbol: Diamond, Rank: Ace},
+		{Symbol: Spade, Rank: King},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Clover, Rank: Three},
+		{Symbol: Clover, Rank: Two},
+	}
+	bestCards, bestHandsRank, bestHighCard := getBestHandsRank(cards)
+	fmt.Println(bestCards) // to delete
+	expected := []Card{
+		{Symbol: Heart, Rank: Six},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Spade, Rank: Queen},
+		{Symbol: Spade, Rank: King},
+		{Symbol: Diamond, Rank: Ace},
+	}
+	if !reflect.DeepEqual(bestCards, expected) {
+		t.Error("BestCard is wrong")
+	}
+	if bestHandsRank != OnePair {
+		t.Error("HandsRank should be OnePair")
+	}
+	if bestHighCard != Six {
+		t.Error("HighCard should be Six")
 	}
 
 }
 
 func TestRoyalStraightFlush(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Ten},
-		{symbol: Spade, rank: Jack},
-		{symbol: Spade, rank: Queen},
-		{symbol: Spade, rank: King},
-		{symbol: Spade, rank: Ace},
+		{Symbol: Spade, Rank: Ten},
+		{Symbol: Spade, Rank: Jack},
+		{Symbol: Spade, Rank: Queen},
+		{Symbol: Spade, Rank: King},
+		{Symbol: Spade, Rank: Ace},
 	}
 	res, highCard = isRoyalStraightFlush(cards)
 	if !res {
@@ -45,11 +78,11 @@ func TestRoyalStraightFlush(t *testing.T) {
 	}
 
 	cards2 := []Card{
-		{symbol: Spade, rank: Nine},
-		{symbol: Spade, rank: Ten},
-		{symbol: Spade, rank: Jack},
-		{symbol: Spade, rank: Queen},
-		{symbol: Spade, rank: King},
+		{Symbol: Spade, Rank: Nine},
+		{Symbol: Spade, Rank: Ten},
+		{Symbol: Spade, Rank: Jack},
+		{Symbol: Spade, Rank: Queen},
+		{Symbol: Spade, Rank: King},
 	}
 	res, highCard = isRoyalStraightFlush(cards2)
 	if res {
@@ -59,11 +92,11 @@ func TestRoyalStraightFlush(t *testing.T) {
 
 func TestStraightFlush(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Four},
-		{symbol: Spade, rank: Five},
-		{symbol: Spade, rank: Ace},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Spade, Rank: Five},
+		{Symbol: Spade, Rank: Ace},
 	}
 	res, highCard = isStraightFlush(cards)
 	if !res {
@@ -74,11 +107,11 @@ func TestStraightFlush(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Four},
-		{symbol: Spade, rank: Five},
-		{symbol: Spade, rank: Six},
-		{symbol: Spade, rank: Seven},
-		{symbol: Spade, rank: Eight},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Spade, Rank: Five},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Spade, Rank: Seven},
+		{Symbol: Spade, Rank: Eight},
 	}
 	res, highCard = isStraightFlush(cards)
 	if !res {
@@ -89,11 +122,11 @@ func TestStraightFlush(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Four},
-		{symbol: Spade, rank: Five},
-		{symbol: Spade, rank: Seven},
-		{symbol: Spade, rank: Eight},
-		{symbol: Spade, rank: Ten},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Spade, Rank: Five},
+		{Symbol: Spade, Rank: Seven},
+		{Symbol: Spade, Rank: Eight},
+		{Symbol: Spade, Rank: Ten},
 	}
 	res, _ = isStraightFlush(cards)
 	if res {
@@ -101,11 +134,11 @@ func TestStraightFlush(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Four},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Seven},
-		{symbol: Spade, rank: Eight},
-		{symbol: Spade, rank: Ten},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Seven},
+		{Symbol: Spade, Rank: Eight},
+		{Symbol: Spade, Rank: Ten},
 	}
 	res, _ = isStraightFlush(cards)
 	if res {
@@ -115,11 +148,11 @@ func TestStraightFlush(t *testing.T) {
 
 func TestFourCard(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Two},
-		{symbol: Spade, rank: Two},
-		{symbol: Spade, rank: Two},
-		{symbol: Spade, rank: Ten},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Two},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Ten},
 	}
 	res, highCard = isFourCard(cards)
 	if !res {
@@ -130,11 +163,11 @@ func TestFourCard(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Three},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Three},
 	}
 	res, highCard = isFourCard(cards)
 	if !res {
@@ -145,11 +178,11 @@ func TestFourCard(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Four},
-		{symbol: Spade, rank: Six},
-		{symbol: Spade, rank: Ten},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Spade, Rank: Ten},
 	}
 	res, _ = isFourCard(cards)
 	if res {
@@ -159,11 +192,11 @@ func TestFourCard(t *testing.T) {
 
 func TestFullHouse(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Two},
-		{symbol: Spade, rank: Two},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Three},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Two},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Three},
 	}
 	res, highCard = isFullHouse(cards)
 	if !res {
@@ -174,11 +207,11 @@ func TestFullHouse(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Two},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Three},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Two},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Three},
 	}
 	res, highCard = isFullHouse(cards)
 	if !res {
@@ -189,11 +222,11 @@ func TestFullHouse(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Four},
-		{symbol: Spade, rank: Five},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Spade, Rank: Five},
 	}
 	res, _ = isFullHouse(cards)
 	if res {
@@ -203,11 +236,11 @@ func TestFullHouse(t *testing.T) {
 
 func TestFlush(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Spade, rank: Two},
-		{symbol: Spade, rank: Two},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Three},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Three},
 	}
 	res, highCard = isFlush(cards)
 	if !res {
@@ -218,11 +251,11 @@ func TestFlush(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Two},
-		{symbol: Spade, rank: Two},
-		{symbol: Spade, rank: Three},
-		{symbol: Spade, rank: Three},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Two},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Three},
 	}
 	res, _ = isFlush(cards)
 	if res {
@@ -232,11 +265,11 @@ func TestFlush(t *testing.T) {
 
 func TestStraight(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Four},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isStraight(cards)
 	if !res {
@@ -247,11 +280,11 @@ func TestStraight(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Four},
-		{symbol: Spade, rank: Five},
-		{symbol: Heart, rank: Ace},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Spade, Rank: Five},
+		{Symbol: Heart, Rank: Ace},
 	}
 	res, highCard = isStraight(cards)
 	if !res {
@@ -262,11 +295,11 @@ func TestStraight(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Four},
-		{symbol: Spade, rank: King},
-		{symbol: Heart, rank: Ace},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Spade, Rank: King},
+		{Symbol: Heart, Rank: Ace},
 	}
 	res, _ = isStraight(cards)
 	if res {
@@ -276,11 +309,11 @@ func TestStraight(t *testing.T) {
 
 func TestTriple(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Two},
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Two},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isTriple(cards)
 	if !res {
@@ -291,11 +324,11 @@ func TestTriple(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Five},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Five},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isTriple(cards)
 	if !res {
@@ -306,11 +339,11 @@ func TestTriple(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Six},
-		{symbol: Heart, rank: Six},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Heart, Rank: Six},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isTriple(cards)
 	if !res {
@@ -321,11 +354,11 @@ func TestTriple(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Six},
-		{symbol: Heart, rank: Ten},
-		{symbol: Spade, rank: Jack},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Heart, Rank: Ten},
+		{Symbol: Spade, Rank: Jack},
 	}
 	res, _ = isTriple(cards)
 	if res {
@@ -335,11 +368,11 @@ func TestTriple(t *testing.T) {
 
 func TestTwoPair(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Two},
-		{symbol: Spade, rank: Three},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Two},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isTwoPair(cards)
 	if !res {
@@ -350,11 +383,11 @@ func TestTwoPair(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Three},
-		{symbol: Heart, rank: Six},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Heart, Rank: Six},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isTwoPair(cards)
 	if !res {
@@ -365,11 +398,11 @@ func TestTwoPair(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Three},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, _ = isTwoPair(cards)
 	if res {
@@ -379,11 +412,11 @@ func TestTwoPair(t *testing.T) {
 
 func TestOnePair(t *testing.T) {
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Two},
-		{symbol: Spade, rank: Three},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Two},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isOnePair(cards)
 	if !res {
@@ -394,11 +427,11 @@ func TestOnePair(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Three},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isOnePair(cards)
 	if !res {
@@ -409,11 +442,11 @@ func TestOnePair(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Five},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Six},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Five},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Six},
 	}
 	res, highCard = isOnePair(cards)
 	if !res {
@@ -424,11 +457,11 @@ func TestOnePair(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Three},
-		{symbol: Spade, rank: Four},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Five},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Three},
+		{Symbol: Spade, Rank: Four},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Five},
 	}
 	res, highCard = isOnePair(cards)
 	if !res {
@@ -439,11 +472,11 @@ func TestOnePair(t *testing.T) {
 	}
 
 	cards = []Card{
-		{symbol: Spade, rank: Two},
-		{symbol: Heart, rank: Five},
-		{symbol: Spade, rank: Six},
-		{symbol: Heart, rank: Jack},
-		{symbol: Spade, rank: King},
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Five},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Heart, Rank: Jack},
+		{Symbol: Spade, Rank: King},
 	}
 	res, _ = isOnePair(cards)
 	if res {
