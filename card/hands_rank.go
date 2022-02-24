@@ -1,13 +1,9 @@
 package card
 
-import (
-	"sort"
-)
-
 type HandsRank int
 
 const (
-	HighCard HandsRank = iota
+	HighCard HandsRank = iota + 1
 	OnePair
 	TwoPair
 	Triple
@@ -31,12 +27,10 @@ func getBestHandsRank(cards []Card) ([]Card, HandsRank, Rank) {
 
 	// 첫번째 족보를 얻어낸 후에 계속 비교해나가서 가장 높은 핸드를 얻어냄
 	bestCards := allCombs[0]
-	sortCards(bestCards)
 	bestHandsRank, bestHighCard := checkHandsRank(bestCards)
 
 	for i := 1; i < len(allCombs); i++ {
 		curCards := allCombs[i]
-		sortCards(curCards)
 		curHandsRank, curHighCard := checkHandsRank(curCards)
 
 		if bestHandsRank < curHandsRank {
@@ -73,14 +67,14 @@ func getBestHandsRank(cards []Card) ([]Card, HandsRank, Rank) {
 	return bestCards, bestHandsRank, bestHighCard
 }
 
-func sortCards(cards []Card) {
-	sort.Slice(cards, func(i, j int) bool { return cards[i].Rank < cards[j].Rank })
-}
-
 // 첫번째 리턴 값은 족보를, 두번째 리턴 값은 하이카드를 나타냄
 // 예를 들어 5스트레이트라면 첫번째 값은 스트레이트를, 두번째 값은 5
 func checkHandsRank(cards []Card) (HandsRank, Rank) {
-	sortCards(cards)
+	if len(cards) != 5 {
+		panic("cards' length must be 5")
+	}
+
+	SortCards(cards)
 
 	var res bool
 	var highCard Rank

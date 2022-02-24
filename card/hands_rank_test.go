@@ -1,7 +1,6 @@
 package card
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -31,6 +30,11 @@ func TestMakeAllCombinations(t *testing.T) {
 }
 
 func TestGetBestHandsRank(t *testing.T) {
+	var bestCards []Card
+	var bestHandsRank HandsRank
+	var bestHighCard Rank
+	var expected []Card
+
 	cards = []Card{
 		{Symbol: Spade, Rank: Queen},
 		{Symbol: Heart, Rank: Six},
@@ -40,9 +44,9 @@ func TestGetBestHandsRank(t *testing.T) {
 		{Symbol: Clover, Rank: Three},
 		{Symbol: Clover, Rank: Two},
 	}
-	bestCards, bestHandsRank, bestHighCard := getBestHandsRank(cards)
-	fmt.Println(bestCards) // to delete
-	expected := []Card{
+	bestCards, bestHandsRank, bestHighCard = getBestHandsRank(cards)
+
+	expected = []Card{
 		{Symbol: Heart, Rank: Six},
 		{Symbol: Spade, Rank: Six},
 		{Symbol: Spade, Rank: Queen},
@@ -59,6 +63,61 @@ func TestGetBestHandsRank(t *testing.T) {
 		t.Error("HighCard should be Six")
 	}
 
+	cards = []Card{
+		{Symbol: Spade, Rank: Queen},
+		{Symbol: Heart, Rank: Six},
+		{Symbol: Diamond, Rank: Ace},
+		{Symbol: Spade, Rank: King},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Two},
+	}
+	bestCards, bestHandsRank, bestHighCard = getBestHandsRank(cards)
+
+	expected = []Card{
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Spade, Rank: Queen},
+		{Symbol: Spade, Rank: King},
+	}
+	if !reflect.DeepEqual(bestCards, expected) {
+		t.Error("BestCard is wrong")
+	}
+	if bestHandsRank != Flush {
+		t.Error("HandsRank should be OnePair")
+	}
+	if bestHighCard != King {
+		t.Error("HighCard should be King")
+	}
+
+	cards = []Card{
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Heart, Rank: Six},
+		{Symbol: Diamond, Rank: Six},
+		{Symbol: Spade, Rank: King},
+		{Symbol: Spade, Rank: Six},
+		{Symbol: Spade, Rank: Three},
+		{Symbol: Clover, Rank: Two},
+	}
+	bestCards, bestHandsRank, bestHighCard = getBestHandsRank(cards)
+
+	expected = []Card{
+		{Symbol: Spade, Rank: Two},
+		{Symbol: Clover, Rank: Two},
+		{Symbol: Heart, Rank: Six},
+		{Symbol: Diamond, Rank: Six},
+		{Symbol: Spade, Rank: Six},
+	}
+	if !reflect.DeepEqual(bestCards, expected) {
+		t.Error("BestCard is wrong")
+	}
+	if bestHandsRank != FullHouse {
+		t.Error("HandsRank should be FullHouse")
+	}
+	if bestHighCard != Six {
+		t.Error("HighCard should be Six")
+	}
 }
 
 func TestRoyalStraightFlush(t *testing.T) {
