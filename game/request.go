@@ -1,7 +1,8 @@
 package game
 
-type BetInfoRequest struct {
+type Request struct {
 	PlayerName string `json:"player_name"`
 	BetAmount  uint64 `json:"bet_amount"`
 	IsDead     bool   `json:"is_dead"`
+	IsLeave    bool   `json:"is_leave"`
 }

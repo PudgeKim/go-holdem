@@ -7,3 +7,12 @@ const (
 	Raise
 	AllIn
 )
+
+type Status int
+
+const (
+	FreeFlop Status = iota
+	Flop
+	Turn
+	River
+)

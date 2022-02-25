@@ -5,10 +5,10 @@ import (
 	"time"
 )
 
-type deck []Card
+type Deck []Card
 
-func NewDeck() deck {
-	var d deck
+func NewDeck() *Deck {
+	var d Deck
 	symbols := []Symbol{Spade, Heart, Diamond, Clover}
 
 	for i := 2; i < 15; i++ {
@@ -22,17 +22,17 @@ func NewDeck() deck {
 	}
 
 	d.shuffle()
-	return d
+	return &d
 }
 
-func (d *deck) shuffle() {
+func (d *Deck) shuffle() {
 	rand.Seed(time.Now().UnixNano())
 	rand.Shuffle(len(*d), func(i, j int) {
 		(*d)[i], (*d)[j] = (*d)[j], (*d)[i]
 	})
 }
 
-func (d *deck) GetCard() Card {
+func (d *Deck) GetCard() Card {
 	lastIdx := len(*d) - 1
 	lastCard := (*d)[lastIdx]
 	*d = (*d)[:lastIdx]
