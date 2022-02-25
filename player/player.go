@@ -3,11 +3,16 @@ package player
 import "github.com/PudgeKim/card"
 
 type Player struct {
-	nickname     string
-	isDead       bool
-	totalBalance uint64
-	gameBalance  uint64         // 게임 참가시에 들고갈 돈
-	hands        []card.Card    // 처음 받는 2장의 카드
+	Nickname     string
+	IsDead       bool
+	IsLeft       bool // 게임 중간에 나간 경우 여기에 우선 체크를 해두고 게임이 종료되면 실제로 나가게 처리함 (인덱스가 꼬이는거 방지하기 위해)
+	IsAllIn      bool
+	Turn         uint           // 해당 플레이어의 순서 (인덱스)
+	TotalBalance uint64         // 매 게임 또는 플레이어가 죽거나 나가는 경우 갱신
+	GameBalance  uint64         // 게임 참가시에 들고갈 돈 (매 게임 또는 플레이어가 죽거나 나가는 경우 갱신)
+	TotalBet     uint64         // 해당 게임에서 누적 베팅액
+	CurrentBet   uint64         // 현재 턴에서 베팅한 금액
+	Hands        []card.Card    // 처음 받는 2장의 카드
 	handsRank    card.HandsRank // 족보 (fullHouse인지 onePair인지.. 등)
 	highCard     card.Rank      // 예를 들어 33322 fullHouse면 highCard는 3
 	bestCards    []card.Card    // 필드에 카드가 모두 오픈되었을 때 hands까지 합쳐서 가장 좋은 5장의 카드들
@@ -15,10 +20,14 @@ type Player struct {
 
 func New(nickname string, totalBalance, gameBalance uint64) Player {
 	return Player{
-		nickname:     nickname,
-		isDead:       false,
-		totalBalance: totalBalance,
-		gameBalance:  gameBalance,
+		Nickname:     nickname,
+		IsDead:       false,
+		IsLeft:       false,
+		IsAllIn:      false,
+		TotalBalance: totalBalance,
+		GameBalance:  gameBalance,
+		TotalBet:     0,
+		CurrentBet:   0,
 	}
 }
 
@@ -78,31 +87,3 @@ func compare(player1 Player, player2 Player) CardCompareResult {
 		}
 	}
 }
-
-//type Players []Player
-//
-//func (p Players) Len() int { return len(p) }
-//func (p Players) Swap(i, j int) { p[i], p[j] = p[j], p[i] }
-//func (p Players) Less(i, j int) bool {
-//	if p[i].handsRank < p[j].handsRank {
-//		return p[i].handsRank < p[j].handsRank
-//	} else if p[i].handsRank > p[j].handsRank {
-//		return p[i].handsRank > p[j].handsRank
-//	} else {
-//		if p[i].highCard < p[j].highCard {
-//			return p[i].highCard < p[j].highCard
-//		} else if p[i].highCard > p[j].highCard {
-//			return p[i].highCard > p[j].highCard
-//		} else {
-//			for k:=4; k>=0; k-- {
-//				if p[i].bestCards[k].Rank < p[j].bestCards[k].Rank {
-//					return p[i].bestCards[k].Rank < p[j].bestCards[k].Rank
-//				}
-//				if p[i].bestCards[k].Rank > p[j].bestCards[k].Rank {
-//					return p[i].bestCards[k].Rank > p[j].bestCards[k].Rank
-//				}
-//			}
-//			return false
-//		}
-//	}
-//}
