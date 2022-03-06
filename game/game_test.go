@@ -3,14 +3,14 @@ package game
 import (
 	"errors"
 	"fmt"
-	"github.com/PudgeKim/player"
-	"reflect"
+	"github.com/PudgeKim/go-holdem/gameerror"
+	"github.com/PudgeKim/go-holdem/player"
 	"testing"
 )
 
 func TestGame_Bet(t *testing.T) {
 	var players []*player.Player
-	var betInfo Request
+	var betInfo BetInfo
 
 	kim := player.New("kim", 300, 200)
 	park := player.New("park", 300, 200)
@@ -18,9 +18,16 @@ func TestGame_Bet(t *testing.T) {
 	lee := player.New("lee", 300, 200)
 	choi := player.New("choi", 300, 200)
 
+	kim.IsReady = true
+	park.IsReady = true
+	han.IsReady = true
+	lee.IsReady = true
+	choi.IsReady = true
+
 	players = []*player.Player{&kim, &park, &han, &lee, &choi}
 
-	game := New(players)
+	game := New()
+	game.setPlayers(players)
 
 	betInfo.BetAmount = 20
 	betInfo.PlayerName = "anonymous"
@@ -34,7 +41,7 @@ func TestGame_Bet(t *testing.T) {
 	if isBetEnd {
 		t.Error("it should be false")
 	}
-	if !errors.Is(err, NoPlayerExists) {
+	if !errors.Is(err, gameerror.NoPlayerExists) {
 		t.Error("NoPlayerExistsError should be occurred")
 	}
 
@@ -46,42 +53,42 @@ func TestGame_Bet(t *testing.T) {
 	if isBetEnd {
 		t.Error("it should be false")
 	}
-	if !errors.Is(err, InvalidPlayerTurn) {
+	if !errors.Is(err, gameerror.InvalidPlayerTurn) {
 		t.Error("InvalidPlayerTurnError should be occurred")
 	}
 
 	betInfo.BetAmount = 20
 	betInfo.PlayerName = "han"
 	betInfo.IsDead = false
-	game.players[2].IsDead = true
+	game.Players[2].IsDead = true
 
 	nextPlayer, isBetEnd, err = game.HandleBet(betInfo)
 	if isBetEnd {
 		t.Error("it should be false")
 	}
-	if !errors.Is(err, DeadPlayer) {
+	if !errors.Is(err, gameerror.DeadPlayer) {
 		t.Error("DeadPlayerError should be occurred")
 	}
 
 	betInfo.BetAmount = 20
 	betInfo.PlayerName = "han"
 	betInfo.IsDead = false
-	game.players[2].IsDead = false
-	game.players[2].IsLeft = true
+	game.Players[2].IsDead = false
+	game.Players[2].IsLeft = true
 
 	nextPlayer, isBetEnd, err = game.HandleBet(betInfo)
 	if isBetEnd {
 		t.Error("it should be false")
 	}
-	if !errors.Is(err, PlayerLeft) {
+	if !errors.Is(err, gameerror.PlayerLeft) {
 		t.Error("PlayerLeftError should be occurred")
 	}
 
 	betInfo.BetAmount = 20
 	betInfo.PlayerName = "han"
 	betInfo.IsDead = true
-	game.players[2].IsDead = false
-	game.players[2].IsLeft = false
+	game.Players[2].IsDead = false
+	game.Players[2].IsLeft = false
 
 	nextPlayer, isBetEnd, err = game.HandleBet(betInfo)
 	if nextPlayer != "lee" {
@@ -93,7 +100,7 @@ func TestGame_Bet(t *testing.T) {
 	if err != nil {
 		t.Error("there should be no error")
 	}
-	if game.players[2].IsDead != true {
+	if game.Players[2].IsDead != true {
 		t.Error("han's IsDead field should be set to true")
 	}
 
@@ -101,7 +108,7 @@ func TestGame_Bet(t *testing.T) {
 	betInfo.BetAmount = 20
 	betInfo.PlayerName = "han"
 	betInfo.IsDead = false
-	game.players[2].IsDead = false
+	game.Players[2].IsDead = false
 
 	nextPlayer, isBetEnd, err = game.HandleBet(betInfo)
 	if isBetEnd {
@@ -146,7 +153,8 @@ func TestGame_isValidBet(t *testing.T) {
 	var p player.Player
 
 	p = player.New("kim", 300, 200)
-	game := New([]*player.Player{&p})
+	game := New()
+	game.setPlayers([]*player.Player{&p})
 
 	game.currentBet = 20
 	betType, err := game.isValidBet(&p, 20)
@@ -179,14 +187,14 @@ func TestGame_isValidBet(t *testing.T) {
 	game.currentBet = 20
 	p = player.New("kim", 300, 200)
 	betType, err = game.isValidBet(&p, 250)
-	if !errors.Is(err, OverBalance) {
+	if !errors.Is(err, gameerror.OverBalance) {
 		t.Error("OverBalanceError should be occurred")
 	}
 
 	game.currentBet = 20
 	p = player.New("kim", 300, 200)
 	betType, err = game.isValidBet(&p, 10)
-	if !errors.Is(err, LowBetting) {
+	if !errors.Is(err, gameerror.LowBetting) {
 		t.Error("LowBettingError should be occurred")
 	}
 }
@@ -202,7 +210,8 @@ func TestGame_getNextPlayerIdx(t *testing.T) {
 		{Nickname: "choi", IsDead: false, IsLeft: false},
 	}
 
-	game := New(players)
+	game := New()
+	game.setPlayers(players)
 	nextIdx, err := game.getNextPlayerIdx()
 	if err != nil {
 		t.Error("there should be no error")
@@ -214,53 +223,17 @@ func TestGame_getNextPlayerIdx(t *testing.T) {
 	}
 
 	players = []*player.Player{
-		{Nickname: "kim", IsDead: true, IsLeft: false},
-		{Nickname: "park", IsDead: true, IsLeft: false},
-		{Nickname: "han", IsDead: true, IsLeft: false},
-		{Nickname: "lee", IsDead: false, IsLeft: true},
-		{Nickname: "choi", IsDead: true, IsLeft: false},
+		{Nickname: "kim", IsReady: true, IsDead: true, IsLeft: false},
+		{Nickname: "park", IsReady: true, IsDead: true, IsLeft: false},
+		{Nickname: "han", IsReady: true, IsDead: true, IsLeft: false},
+		{Nickname: "lee", IsReady: true, IsDead: false, IsLeft: true},
+		{Nickname: "choi", IsReady: true, IsDead: true, IsLeft: false},
 	}
 
-	game = New(players)
+	game = New()
+	game.setPlayers(players)
 	nextIdx, err = game.getNextPlayerIdx()
-	if !errors.Is(err, NoPlayersLeft) {
+	if !errors.Is(err, gameerror.NoPlayersLeft) {
 		t.Error("there should be NoPlayersLeftError")
-	}
-}
-
-func TestGame_AddPlayer(t *testing.T) {
-	kim := player.Player{Nickname: "kim"}
-	han := player.Player{Nickname: "han"}
-
-	players := []*player.Player{
-		&kim,
-		&han,
-	}
-
-	game := New(players)
-	park := player.Player{Nickname: "park"}
-	game.AddPlayer(&park)
-
-	if !reflect.DeepEqual(game.players, []*player.Player{
-		&kim,
-		&han,
-		&park,
-	}) {
-		t.Error("players should be kim, han, park")
-	}
-}
-
-func TestGame_RemovePlayer(t *testing.T) {
-	kim := player.Player{Nickname: "kim"}
-	han := player.Player{Nickname: "han"}
-	park := player.Player{Nickname: "park"}
-
-	players := []*player.Player{&kim, &han, &park}
-
-	game := New(players)
-	game.RemovePlayer(park)
-
-	if !reflect.DeepEqual(game.players, []*player.Player{&kim, &han}) {
-		t.Error("players should be kim, han")
 	}
 }

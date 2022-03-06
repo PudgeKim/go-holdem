@@ -1,7 +1,7 @@
 package player
 
 import (
-	"github.com/PudgeKim/card"
+	"github.com/PudgeKim/go-holdem/card"
 	"reflect"
 	"testing"
 )

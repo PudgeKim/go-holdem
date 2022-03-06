@@ -1,13 +1,13 @@
 package player
 
-import "github.com/PudgeKim/card"
+import "github.com/PudgeKim/go-holdem/card"
 
 type Player struct {
 	Nickname     string
+	IsReady      bool // 게임준비
 	IsDead       bool
 	IsLeft       bool // 게임 중간에 나간 경우 여기에 우선 체크를 해두고 게임이 종료되면 실제로 나가게 처리함 (인덱스가 꼬이는거 방지하기 위해)
 	IsAllIn      bool
-	Turn         uint           // 해당 플레이어의 순서 (인덱스)
 	TotalBalance uint64         // 매 게임 또는 플레이어가 죽거나 나가는 경우 갱신
 	GameBalance  uint64         // 게임 참가시에 들고갈 돈 (매 게임 또는 플레이어가 죽거나 나가는 경우 갱신)
 	TotalBet     uint64         // 해당 게임에서 누적 베팅액
@@ -21,6 +21,7 @@ type Player struct {
 func New(nickname string, totalBalance, gameBalance uint64) Player {
 	return Player{
 		Nickname:     nickname,
+		IsReady:      false,
 		IsDead:       false,
 		IsLeft:       false,
 		IsAllIn:      false,
