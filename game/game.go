@@ -130,7 +130,7 @@ func (g *Game) Start() {
 			if isBetEnd {
 				g.status = Flop
 			}
-			betResponse.GameStatus = FreeFlop
+			betResponse.GameStatus = Flop
 			g.BetResponseChan <- betResponse
 			// 어딘가로 HandleBet의 결과값을 보내야함
 			// (그 어딘가에서 프론트로 전송해줌)
@@ -138,26 +138,38 @@ func (g *Game) Start() {
 			if isBetEnd {
 				g.status = Turn
 			}
-			betResponse.GameStatus = Flop
+			betResponse.GameStatus = Turn
 			g.BetResponseChan <- betResponse
 		case Turn:
 			if isBetEnd {
 				g.status = River
 			}
-			betResponse.GameStatus = Turn
+			betResponse.GameStatus = River
 			g.BetResponseChan <- betResponse
 		case River:
 			if isBetEnd {
 				// 게임 종료
+				g.status = GameEnd
+				betResponse.GameStatus = GameEnd
+
+				// 정보 전송
+				g.BetResponseChan <- betResponse
+
 				// 나간 플레이어들 빼줘야함
-				// 나간 플레이어들 고려해서 인덱스 변경해야함
-				// firstPlayer값 1증가 시켜줘야함, smallBlind, bigBlind 값들도 증가시켜줘야함
-				// 인덱스 값들, 베팅 값들 모두 초기화
-				// status도 변경시켜줘야함
+				g.removeLeftPlayers()
+
+				// 베팅 값들 모두 초기화
+				g.clearPlayersCurrentBet()
+				g.currentBet = 0
+				g.totalBet = 0
+
+				// 게임 종료됬으니 for loop 멈춤
+				break
 			}
+
+			g.BetResponseChan <- betResponse
 		}
 	}
-
 }
 
 // HandleBet 모든 플레이어들의 베팅이 종료되는 경우면 true를 리턴함
@@ -322,6 +334,34 @@ func (g *Game) clearPlayersCurrentBet() {
 	for _, p := range g.Players {
 		p.CurrentBet = 0
 	}
+}
+
+// 나간 플레이어들 고려해서 인덱스 변경해야함
+// smallBlind와 bigBlind가 바뀌었는지 리턴
+func (g *Game) removeLeftPlayers() {
+	var indexesToRemove []int
+
+	for idx, p := range g.Players {
+		if p.IsLeft {
+			if g.smallBlindIdx == uint(idx) {
+				g.smallBlindIdx = g.getNextIdx(uint(idx))
+			}
+			if g.bigBlindIdx == uint(idx) {
+				g.bigBlindIdx = g.getNextIdx(uint(idx))
+			}
+
+			indexesToRemove = append(indexesToRemove, idx)
+		}
+	}
+
+	for _, idx := range indexesToRemove {
+		g.Players = removePlayer(g.Players, idx)
+	}
+
+}
+
+func removePlayer(players []*player.Player, s int) []*player.Player {
+	return append(players[:s], players[s+1:]...)
 }
 
 func (g *Game) SetBetResponseChan(betResponseChan chan channels.BetResponse) {

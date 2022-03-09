@@ -13,4 +13,5 @@ const (
 	Flop     = "Flop"
 	Turn     = "Turn"
 	River    = "River"
+	GameEnd  = "GameEnd"
 )
