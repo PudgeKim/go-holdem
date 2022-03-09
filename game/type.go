@@ -8,11 +8,9 @@ const (
 	AllIn
 )
 
-type Status int
-
 const (
-	FreeFlop Status = iota
-	Flop
-	Turn
-	River
+	FreeFlop = "FreeFlop"
+	Flop     = "Flop"
+	Turn     = "Turn"
+	River    = "River"
 )

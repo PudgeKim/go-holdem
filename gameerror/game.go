@@ -10,4 +10,5 @@ var (
 	LackOfPlayers         = errors.New("players should be equal or more than two")
 	OverBalance           = errors.New("betting amount is more than player's balance")
 	LowBetting            = errors.New("player's betting is lower than current betting amount")
+	AlreadyStarted        = errors.New("game is already started")
 )

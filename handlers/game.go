@@ -1,26 +1,124 @@
 package handlers
 
 import (
-	"github.com/PudgeKim/go-holdem/game"
+	"context"
+	"github.com/PudgeKim/go-holdem/channels"
+	"github.com/PudgeKim/go-holdem/gameerror"
+	"github.com/PudgeKim/go-holdem/gamerooms"
+	"github.com/PudgeKim/go-holdem/grpc_client"
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"net/http"
 )
 
-var RequestChan = make(chan game.BetInfo)
+var betResponseChanMap = make(map[uuid.UUID]chan channels.BetResponse)
 
-// 프론트로부터 Json 요청 받음 (방 id, game.BetInfo 정보들 필요함)
-// unmarshal 후에 방을 관리하는 채널에 넘겨줌
-// 방을 관리하는 채널에서 방 번호에 해당하는 게임에 정보를 넘겨줌
-// 게임을 관리하는 채널(game.betChan)에서 해당 요청을 처리
-// game.betChan에서 요청 처리 후 다시 프론트로 넘겨줘야하는데
-// 아래처럼 맨 처음 프론트에서 요청 받는 함수에서 <-game.betChan 이렇게 blocking하면 될듯?
+type GameHandler struct {
+	rooms       gamerooms.GameRooms
+	grpcHandler *grpc_client.GrpcHandler
+}
 
-func GameHandler(c *gin.Context) {
-	var req game.BetInfo
+func NewGameHandler(rooms gamerooms.GameRooms, grpcHandler *grpc_client.GrpcHandler) *GameHandler {
+	return &GameHandler{
+		rooms:       rooms,
+		grpcHandler: grpcHandler,
+	}
+}
+
+type GameStartReq struct {
+	RoomId string `json:"room_id"`
+	HostId string `json:"host_id"`
+}
+
+func (g GameHandler) Start(c *gin.Context) {
+	var req GameStartReq
 
 	if err := c.ShouldBindJSON(&req); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}
 
+	room, err := g.rooms.GetGameRoomAfterParse(req.RoomId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// grpc 통신을 통해 유효한 방장 Id인지 확인
+	host, err := g.grpcHandler.GetUser(context.Background(), req.HostId)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	if host.Id != req.HostId {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gameerror.InvalidHostId})
+		return
+	}
+
+	if room.Game.IsStarted {
+		c.JSON(http.StatusBadRequest, gin.H{"error": gameerror.AlreadyStarted})
+		return
+	}
+
+	if err := room.Game.SetPlayers(); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	// blocking되면 안되므로 고루틴으로 실행 (Start함수는 무한 for loop)
+	go room.Game.Start()
+
+	statusOkWithSuccess(c, nil, nil)
+}
+
+type BetReq struct {
+	RoomId    string `json:"room_id"`
+	PlayerId  string `json:"player_id"`
+	BetAmount uint64 `json:"bet_amount"`
+	IsDead    bool   `json:"is_dead"`
+}
+
+func (g GameHandler) Bet(c *gin.Context) {
+	var req BetReq
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequestWithError(c, err)
+		return
+	}
+
+	room, err := g.rooms.GetGameRoomAfterParse(req.RoomId)
+	if err != nil {
+		badRequestWithError(c, err)
+		return
+	}
+
+	user, err := g.grpcHandler.GetUser(context.Background(), req.PlayerId)
+	if err != nil {
+		badRequestWithError(c, err)
+		return
+	}
+
+	betInfo := channels.BetInfo{
+		PlayerName: user.Name,
+		BetAmount:  req.BetAmount,
+		IsDead:     req.IsDead,
+	}
+
+	// Game은 무한 for loop을 돌며 베팅 정보가 들어올 때마다 처리함
+	room.Game.BetChan <- betInfo
+
+	// 게임 내에서 베팅처리를 한 후 돌아오는 응답을 기다림
+	betResponse := <-betResponseChanMap[room.Id]
+
+	if betResponse.Error != nil {
+		badRequestWithError(c, betResponse.Error)
+		return
+	}
+
+	statusOkWithSuccess(c, nil, betResponse)
+}
+
+func SetBetResponseChan(roomId uuid.UUID) chan channels.BetResponse {
+	betResponseChanMap[roomId] = make(chan channels.BetResponse)
+	return betResponseChanMap[roomId]
 }

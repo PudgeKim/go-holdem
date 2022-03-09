@@ -18,9 +18,6 @@ type GameRoom struct {
 }
 
 func NewGameRoom(name, hostName string) (*GameRoom, error) {
-	// TODO
-	// DB연동 후에는 DB에서 hostName에 해당하는 플레이어있는지 확인
-
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err

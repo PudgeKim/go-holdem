@@ -27,7 +27,7 @@ func TestGame_Bet(t *testing.T) {
 	players = []*player.Player{&kim, &park, &han, &lee, &choi}
 
 	game := New()
-	game.setPlayers(players)
+	game.SetPlayers(players)
 
 	betInfo.BetAmount = 20
 	betInfo.PlayerName = "anonymous"
@@ -101,7 +101,7 @@ func TestGame_Bet(t *testing.T) {
 		t.Error("there should be no error")
 	}
 	if game.Players[2].IsDead != true {
-		t.Error("han's IsDead field should be set to true")
+		t.Error("han's IsPlayerDead field should be set to true")
 	}
 
 	// 여기부터는 정상 베팅
@@ -154,7 +154,7 @@ func TestGame_isValidBet(t *testing.T) {
 
 	p = player.New("kim", 300, 200)
 	game := New()
-	game.setPlayers([]*player.Player{&p})
+	game.SetPlayers([]*player.Player{&p})
 
 	game.currentBet = 20
 	betType, err := game.isValidBet(&p, 20)
@@ -211,7 +211,7 @@ func TestGame_getNextPlayerIdx(t *testing.T) {
 	}
 
 	game := New()
-	game.setPlayers(players)
+	game.SetPlayers(players)
 	nextIdx, err := game.getNextPlayerIdx()
 	if err != nil {
 		t.Error("there should be no error")
@@ -231,7 +231,7 @@ func TestGame_getNextPlayerIdx(t *testing.T) {
 	}
 
 	game = New()
-	game.setPlayers(players)
+	game.SetPlayers(players)
 	nextIdx, err = game.getNextPlayerIdx()
 	if !errors.Is(err, gameerror.NoPlayersLeft) {
 		t.Error("there should be NoPlayersLeftError")

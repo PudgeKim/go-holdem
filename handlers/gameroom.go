@@ -1,59 +1,107 @@
 package handlers
 
 import (
+	"context"
 	"github.com/PudgeKim/go-holdem/gamerooms"
+	"github.com/PudgeKim/go-holdem/grpc_client"
+	"github.com/PudgeKim/go-holdem/grpc_client/grpc_error"
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 	"net/http"
 )
-
-type LeavePlayerReq struct {
-	RoomId     string `json:"room_id"`
-	PlayerName string `json:"player_name"`
-	LeaveOrAdd string `json:"leave_or_add"` // "leave" or "add"
-}
 
 const (
 	Leave = "leave"
 	Add   = "add"
 )
 
-func LeavePlayer(c *gin.Context) {
+type GameRoomHandler struct {
+	rooms       gamerooms.GameRooms
+	grpcHandler *grpc_client.GrpcHandler
+}
+
+func NewGameRoomHandler(rooms gamerooms.GameRooms, grpcHandler *grpc_client.GrpcHandler) *GameRoomHandler {
+	return &GameRoomHandler{
+		rooms:       rooms,
+		grpcHandler: grpcHandler,
+	}
+}
+
+type AddPlayerReq struct {
+	RoomId       string `json:"room_id"`
+	PlayerId     string `json:"player_id"`
+	PlayerName   string `json:"player_name"`
+	TotalBalance uint64 `json:"total_balance"`
+	GameBalance  uint64 `json:"game_balance"`
+}
+
+func (g GameRoomHandler) AddPlayer(c *gin.Context) {
+	var req AddPlayerReq
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		badRequestWithError(c, err)
+		return
+	}
+
+	user, err := g.grpcHandler.GetUser(context.Background(), req.PlayerId)
+	if err != nil {
+		badRequestWithError(c, err)
+		return
+	}
+	if user.Id != req.PlayerId {
+		c.JSON(http.StatusBadRequest, gin.H{"error": grpc_error.InvalidUser})
+		return
+	}
+
+	room, err := g.rooms.GetGameRoomAfterParse(req.RoomId)
+	if err != nil {
+		badRequestWithError(c, err)
+		return
+	}
+
+	err = room.AddPlayer(req.PlayerName, req.TotalBalance, req.GameBalance)
+	if err != nil {
+		badRequestWithError(c, err)
+		return
+	}
+
+	statusOkWithSuccess(c, nil, nil)
+}
+
+type LeavePlayerReq struct {
+	RoomId     string `json:"room_id"`
+	PlayerId   string `json:"player_id"`
+	PlayerName string `json:"player_name"`
+}
+
+func (g GameRoomHandler) LeavePlayer(c *gin.Context) {
 	var req LeavePlayerReq
 
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		badRequestWithError(c, err)
 		return
 	}
 
-	roomId, err := uuid.Parse(req.RoomId)
+	user, err := g.grpcHandler.GetUser(context.Background(), req.PlayerId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		badRequestWithError(c, err)
+		return
+	}
+	if user.Id != req.PlayerId {
+		c.JSON(http.StatusBadRequest, gin.H{"error": grpc_error.InvalidUser})
 		return
 	}
 
-	room, err := gamerooms.GetGameRoom(roomId)
+	room, err := g.rooms.GetGameRoomAfterParse(req.RoomId)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		badRequestWithError(c, err)
 		return
 	}
 
-	switch req.LeaveOrAdd {
-	case Leave:
-		err = room.LeavePlayer(req.PlayerName)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
-	case Add:
-		// TODO
-		// grpc 통신으로 플레이어 정보 갖고 와야함
-		err = room.AddPlayer(req.PlayerName)
-		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
-			return
-		}
+	err = room.LeavePlayer(req.PlayerName)
+	if err != nil {
+		badRequestWithError(c, err)
+		return
 	}
 
-	c.JSON(200, gin.H{})
+	statusOkWithSuccess(c, nil, nil)
 }

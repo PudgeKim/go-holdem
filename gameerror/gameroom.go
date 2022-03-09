@@ -13,4 +13,5 @@ var (
 	NoPlayersLeft         = errors.New("all players left or dead or not ready")
 	PlayerAlreadyExists   = errors.New("player is already in the gameroom")
 	GameAlreadyStarted    = errors.New("game is already started you can't change ready status")
+	InvalidHostId         = errors.New("requested host id is invalid")
 )

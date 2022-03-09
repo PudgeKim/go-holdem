@@ -2,6 +2,7 @@ package game
 
 import (
 	"github.com/PudgeKim/go-holdem/card"
+	"github.com/PudgeKim/go-holdem/channels"
 	"github.com/PudgeKim/go-holdem/gameerror"
 	"github.com/PudgeKim/go-holdem/player"
 )
@@ -17,9 +18,10 @@ type Game struct {
 	currentBet uint64           // 현재 턴에서 최고 베팅액 (player1이 20을 걸었고 player2가 30을 걸었으면 currentBet을 30으로 변경해줘야함)
 	IsStarted  bool             // 게임이 시작됬는지
 
-	deck    *card.Deck
-	status  Status       // FreeFlop인지 Turn인지 등
-	betChan chan BetInfo // 베팅 등을 포함해서 게임에 필요한 요청들을 받고 처리함
+	deck            *card.Deck
+	status          string                    // FreeFlop인지 Turn인지 등
+	BetChan         chan channels.BetInfo     // 베팅 등을 포함해서 게임에 필요한 요청들을 받고 처리함
+	BetResponseChan chan channels.BetResponse // 베팅을 처리하고 프론트에 응답을 주기 위해서 이 채널을 통해 전달함
 
 	smallBlindIdx uint
 	bigBlindIdx   uint
@@ -40,13 +42,13 @@ func New() *Game {
 		IsStarted:  false,
 		deck:       card.NewDeck(),
 		status:     FreeFlop,
-		betChan:    make(chan BetInfo),
+		BetChan:    make(chan channels.BetInfo),
 	}
 }
 
-// 준비된 플레이어들의 순서와 smallBlind, bigBlind를 지정해줌
+// SetPlayers 준비된 플레이어들의 순서와 smallBlind, bigBlind를 지정해줌
 // 게임이 처음 시작됬는지 아닌지에 따라 구별함
-func (g *Game) setPlayers() error {
+func (g *Game) SetPlayers() error {
 	if len(g.Players) < 2 {
 		return gameerror.LackOfPlayers
 	}
@@ -102,31 +104,48 @@ func (g *Game) setPlayers() error {
 // Start 게임 시작 요청이 들어오면 해당 함수 실행
 func (g *Game) Start() {
 	for {
-		req := <-g.betChan
+		req := <-g.BetChan
 
 		// 게임 준비 고려해서 코드 짜야됨
 
-		nextPlayerName, isBetEnd, err := g.HandleBet(req)
+		var betResponse channels.BetResponse
+
+		nextPlayerName, isPlayerDead, playerCurBet, playerTotBet, gameCurBet, gameTotBet, isBetEnd, err := g.HandleBet(req)
 		if err != nil {
-			// 어딘가로 에러 보내야함
-			// TODO
+			betResponse.Error = err
+			g.BetResponseChan <- betResponse // 에러 전파 (handler에서 해당 에러를 받고 프론트에 에러 넘겨줌)
+			continue
 		}
+
+		betResponse.IsBetEnd = isBetEnd
+		betResponse.IsPlayerDead = isPlayerDead
+		betResponse.PlayerCurrentBet = playerCurBet
+		betResponse.PlayerTotalBet = playerTotBet
+		betResponse.GameCurrentBet = gameCurBet
+		betResponse.GameTotalBet = gameTotBet
+		betResponse.NextPlayerName = nextPlayerName
 
 		switch g.status {
 		case FreeFlop:
 			if isBetEnd {
 				g.status = Flop
 			}
+			betResponse.GameStatus = FreeFlop
+			g.BetResponseChan <- betResponse
 			// 어딘가로 HandleBet의 결과값을 보내야함
 			// (그 어딘가에서 프론트로 전송해줌)
 		case Flop:
 			if isBetEnd {
 				g.status = Turn
 			}
+			betResponse.GameStatus = Flop
+			g.BetResponseChan <- betResponse
 		case Turn:
 			if isBetEnd {
 				g.status = River
 			}
+			betResponse.GameStatus = Turn
+			g.BetResponseChan <- betResponse
 		case River:
 			if isBetEnd {
 				// 게임 종료
@@ -142,25 +161,25 @@ func (g *Game) Start() {
 }
 
 // HandleBet 모든 플레이어들의 베팅이 종료되는 경우면 true를 리턴함
-// 다음 플레이어가 누군지도 리턴
-func (g *Game) HandleBet(betInfo BetInfo) (string, bool, error) {
+// 다음 플레이어, 현재플레이어 isDead, 현재 플레이어의 currentBet, totalBet, 현재 게임의 currentBet, totalBet, 베팅종료 리턴
+func (g *Game) HandleBet(betInfo channels.BetInfo) (string, bool, uint64, uint64, uint64, uint64, bool, error) {
 	p, err := g.findPlayer(betInfo.PlayerName)
 	if err != nil {
-		return "", false, err
+		return "", false, 0, 0, 0, 0, false, err
 	}
 
 	expectedPlayer := g.Players[g.currentPlayerIdx]
 	if p.Nickname != expectedPlayer.Nickname {
-		return "", false, gameerror.InvalidPlayerTurn
+		return "", false, 0, 0, 0, 0, false, gameerror.InvalidPlayerTurn
 	}
 	if !p.IsReady {
-		return "", false, gameerror.PlayerNotReady
+		return "", false, 0, 0, 0, 0, false, gameerror.PlayerNotReady
 	}
 	if p.IsDead {
-		return "", false, gameerror.DeadPlayer
+		return "", false, 0, 0, 0, 0, false, gameerror.DeadPlayer
 	}
 	if p.IsLeft {
-		return "", false, gameerror.PlayerLeft
+		return "", false, 0, 0, 0, 0, false, gameerror.PlayerLeft
 	}
 
 	// 플레이어가 베팅하는 대신 죽은 경우
@@ -168,15 +187,15 @@ func (g *Game) HandleBet(betInfo BetInfo) (string, bool, error) {
 		p.IsDead = true
 		nextPlayerIdx, err := g.getNextPlayerIdx()
 		if err != nil {
-			return "", false, err
+			return "", false, 0, 0, 0, 0, false, err
 		}
 		nextPlayer := g.Players[nextPlayerIdx].Nickname
-		return nextPlayer, false, nil
+		return nextPlayer, true, p.CurrentBet, p.TotalBet, g.currentBet, g.totalBet, false, nil
 	}
 
 	betType, err := g.isValidBet(p, betInfo.BetAmount)
 	if err != nil {
-		return "", false, err
+		return "", false, 0, 0, 0, 0, false, err
 	}
 	if betType == AllIn {
 		p.IsAllIn = true
@@ -187,13 +206,13 @@ func (g *Game) HandleBet(betInfo BetInfo) (string, bool, error) {
 
 	nextPlayerIdx, err := g.getNextPlayerIdx()
 	if err != nil {
-		return "", false, err
+		return "", false, 0, 0, 0, 0, false, err
 	}
 
 	nextPlayerName := g.Players[nextPlayerIdx].Nickname
 	currentPlayerIdx, err := g.getPlayerIdx(p.Nickname)
 	if err != nil {
-		return "", false, err
+		return "", false, 0, 0, 0, 0, false, err
 	}
 
 	// 현재 베팅한 플레이어가 베팅한 금액에 따라 베팅리더인지 체크 후에 현재 베팅 턴을 종료할지 결정
@@ -203,18 +222,18 @@ func (g *Game) HandleBet(betInfo BetInfo) (string, bool, error) {
 		g.currentBet = p.CurrentBet
 		g.betLeaderIdx = currentPlayerIdx
 		g.currentPlayerIdx = nextPlayerIdx
-		return nextPlayerName, false, nil
+		return nextPlayerName, false, p.CurrentBet, p.TotalBet, g.currentBet, g.totalBet, false, nil
 	} else {
 		// 베팅 종료 조건 달성한 경우
 		if g.getReadyPlayerIdx(currentPlayerIdx+1) == g.betLeaderIdx {
 			g.currentPlayerIdx = g.firstPlayerIdx // 다음 베팅을 위해서 초기화
 			g.clearPlayersCurrentBet()
-			return nextPlayerName, true, nil
+			return nextPlayerName, false, p.CurrentBet, p.TotalBet, g.currentBet, g.totalBet, true, nil
 		}
 
 		// 베팅은 종료되지 않고 다음 플레이어가 베팅해야함
 		g.currentPlayerIdx = nextPlayerIdx
-		return nextPlayerName, false, nil
+		return nextPlayerName, false, p.CurrentBet, p.TotalBet, g.currentBet, g.totalBet, false, nil
 	}
 }
 
@@ -303,4 +322,8 @@ func (g *Game) clearPlayersCurrentBet() {
 	for _, p := range g.Players {
 		p.CurrentBet = 0
 	}
+}
+
+func (g *Game) SetBetResponseChan(betResponseChan chan channels.BetResponse) {
+	g.BetResponseChan = betResponseChan
 }
