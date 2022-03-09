@@ -3,11 +3,10 @@ package gameerror
 import (
 	"errors"
 	"fmt"
-	"github.com/PudgeKim/go-holdem/gameroom"
 )
 
 var (
-	PlayerLimitationError = errors.New(fmt.Sprintf("max number of player is %d", gameroom.RoomLimit))
+	PlayerLimitationError = errors.New(fmt.Sprintf("max number of player is %d", 7))
 	NoPlayerExists        = errors.New("no player exists")
 	PlayerLeft            = errors.New("player left the game")
 	NoPlayersLeft         = errors.New("all players left or dead or not ready")

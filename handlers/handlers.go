@@ -3,12 +3,12 @@ package handlers
 import "github.com/gin-gonic/gin"
 
 type Handlers struct {
-	roomsHandler GameRoomsHandler
-	roomHandler  GameRoomHandler
-	gameHandler  GameHandler
+	roomsHandler *GameRoomsHandler
+	roomHandler  *GameRoomHandler
+	gameHandler  *GameHandler
 }
 
-func NewHandlers(gameroomsHandler GameRoomsHandler, gameroomHandler GameRoomHandler, gameHandler GameHandler) *Handlers {
+func NewHandlers(gameroomsHandler *GameRoomsHandler, gameroomHandler *GameRoomHandler, gameHandler *GameHandler) *Handlers {
 	return &Handlers{
 		roomsHandler: gameroomsHandler,
 		roomHandler:  gameroomHandler,
@@ -24,6 +24,9 @@ func (h *Handlers) Routes() *gin.Engine {
 
 	router.POST("/gameroom/add", h.roomHandler.AddPlayer)
 	router.POST("/gameroom/leave", h.roomHandler.LeavePlayer)
+
+	router.POST("/game/start", h.gameHandler.Start)
+	router.POST("/game/bet", h.gameHandler.Bet)
 
 	return router
 }
