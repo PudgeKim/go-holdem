@@ -12,4 +12,5 @@ type BetResponse struct {
 	GameTotalBet     uint64 `json:"game_total_bet"`
 	NextPlayerName   string `json:"next_player_name"`
 	GameStatus       string `json:"game_status"` // FreeFlop, Flop, Turn, River
+	Winners 		[]string `json:"winners,omitempty"`
 }

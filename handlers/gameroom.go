@@ -2,11 +2,10 @@ package handlers
 
 import (
 	"context"
-	"github.com/PudgeKim/go-holdem/gamerooms"
-	"github.com/PudgeKim/go-holdem/grpc_client"
-	"github.com/PudgeKim/go-holdem/grpc_client/grpc_error"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/PudgeKim/go-holdem/gamerooms"
+	"github.com/gin-gonic/gin"
 )
 
 const (
@@ -16,13 +15,12 @@ const (
 
 type GameRoomHandler struct {
 	rooms       gamerooms.GameRooms
-	grpcHandler *grpc_client.GrpcHandler
 }
 
-func NewGameRoomHandler(rooms gamerooms.GameRooms, grpcHandler *grpc_client.GrpcHandler) *GameRoomHandler {
+func NewGameRoomHandler(rooms gamerooms.GameRooms) *GameRoomHandler {
 	return &GameRoomHandler{
 		rooms:       rooms,
-		grpcHandler: grpcHandler,
+
 	}
 }
 

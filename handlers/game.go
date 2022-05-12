@@ -2,26 +2,25 @@ package handlers
 
 import (
 	"context"
+	"net/http"
+
 	"github.com/PudgeKim/go-holdem/channels"
+	"github.com/PudgeKim/go-holdem/game"
 	"github.com/PudgeKim/go-holdem/gameerror"
 	"github.com/PudgeKim/go-holdem/gamerooms"
-	"github.com/PudgeKim/go-holdem/grpc_client"
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"net/http"
 )
 
 var betResponseChanMap = make(map[uuid.UUID]chan channels.BetResponse)
 
 type GameHandler struct {
 	rooms       gamerooms.GameRooms
-	grpcHandler *grpc_client.GrpcHandler
 }
 
-func NewGameHandler(rooms gamerooms.GameRooms, grpcHandler *grpc_client.GrpcHandler) *GameHandler {
+func NewGameHandler(rooms gamerooms.GameRooms) *GameHandler {
 	return &GameHandler{
 		rooms:       rooms,
-		grpcHandler: grpcHandler,
 	}
 }
 
@@ -85,7 +84,7 @@ func (g GameHandler) Bet(c *gin.Context) {
 		badRequestWithError(c, err)
 		return
 	}
-
+	
 	room, err := g.rooms.GetGameRoomAfterParse(req.RoomId)
 	if err != nil {
 		badRequestWithError(c, err)
@@ -113,6 +112,11 @@ func (g GameHandler) Bet(c *gin.Context) {
 	if betResponse.Error != nil {
 		badRequestWithError(c, betResponse.Error)
 		return
+	}
+
+	// 게임 종료시 승자들 잔고 올려주고 패자들 잔고 내려야함
+	if betResponse.GameStatus == game.GameEnd {
+		// TODO
 	}
 
 	statusOkWithSuccess(c, nil, betResponse)
