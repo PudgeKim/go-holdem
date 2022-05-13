@@ -1,9 +1,12 @@
 package gameroom
 
 import (
+	"github.com/PudgeKim/go-holdem/cacheserver"
+	"github.com/PudgeKim/go-holdem/domain/repository"
 	"github.com/PudgeKim/go-holdem/game"
 	"github.com/PudgeKim/go-holdem/gameerror"
 	"github.com/PudgeKim/go-holdem/player"
+	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
 
@@ -15,9 +18,11 @@ type GameRoom struct {
 	HostName string     `json:"host_name"` // 방장 닉네임
 	Limit    uint       `json:"limit"`     // 방 하나에 최대 플레이어 수
 	Game     *game.Game `json:"-"`
+	userRepo repository.UserRepository
+	cacheRepo cacheserver.CacheRepository // redis같은 곳에 방에 대한 정보를 저장함 
 }
 
-func NewGameRoom(name, hostName string) (*GameRoom, error) {
+func NewGameRoom(name, hostName string, userRepo repository.UserRepository, redisClient *redis.Client) (*GameRoom, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
@@ -28,7 +33,9 @@ func NewGameRoom(name, hostName string) (*GameRoom, error) {
 		Name:     name,
 		HostName: hostName,
 		Limit:    RoomLimit,
-		Game:     game.New(),
+		Game:     game.New(userRepo),
+		userRepo: userRepo,
+		redisClient: redisClient
 	}, nil
 }
 
@@ -65,8 +72,8 @@ func (g *GameRoom) HandleReady(nickname string, isReady bool) error {
 	return nil
 }
 
-func (g *GameRoom) AddPlayer(nickname string, totalBalance, gameBalance uint64) error {
-	_, err := g.FindPlayer(nickname)
+func (g *GameRoom) AddPlayer(player *player.Player) error {
+	_, err := g.FindPlayer(player.Nickname)
 	// nil이면 플레이어가 이미 존재하는데 또 요청이 온 것
 	if err == nil {
 		return gameerror.PlayerAlreadyExists
@@ -76,8 +83,7 @@ func (g *GameRoom) AddPlayer(nickname string, totalBalance, gameBalance uint64) 
 		return gameerror.PlayerLimitationError
 	}
 
-	p := player.New(nickname, totalBalance, gameBalance)
-	g.Game.Players = append(g.Game.Players, &p)
+	g.Game.Players = append(g.Game.Players, player)
 	return nil
 }
 
