@@ -33,9 +33,16 @@ const (
 // firstPlayer = bigBlind 다음 인덱스에 해당하는 플레이어 (만약 플레이어가 2명이라면 smallBlind에 해당되는 플레이어)
 
 type Game struct {
+	memento *GameMemento
+
 	userRepo repository.UserRepository
 	redisClient *redis.Client // redis같은 캐시서버에 현재 방에 있는 플레이어들을 저장해둠
 	ctx context.Context
+
+	BetChan         chan channels.BetInfo `json:"-"`     // 베팅 등을 포함해서 게임에 필요한 요청들을 받고 처리함
+	BetResponseChan chan channels.BetResponse `json:"-"` // 베팅을 처리하고 프론트에 응답을 주기 위해서 이 채널을 통해 전달함
+
+	// 아래 필드들은 redis에 저장됨 
 	RoomId uuid.UUID
 	RoomLimit uint 
 	Players    []*player.Player // 게임에 참가하고 있는 플레이어들
@@ -45,8 +52,6 @@ type Game struct {
 
 	Deck            *card.Deck
 	Status          string                    // FreeFlop인지 Turn인지 등
-	BetChan         chan channels.BetInfo     // 베팅 등을 포함해서 게임에 필요한 요청들을 받고 처리함
-	BetResponseChan chan channels.BetResponse // 베팅을 처리하고 프론트에 응답을 주기 위해서 이 채널을 통해 전달함
 
 	SmallBlindIdx uint
 	BigBlindIdx   uint
@@ -64,8 +69,7 @@ func New(userRepo repository.UserRepository, redisClient *redis.Client, ctx cont
 	if err != nil {
 		return nil, err
 	}
-
-	return &Game{
+	game := &Game{
 		userRepo: userRepo,
 		redisClient: redisClient,
 		ctx: ctx,
@@ -78,7 +82,11 @@ func New(userRepo repository.UserRepository, redisClient *redis.Client, ctx cont
 		Deck:       card.NewDeck(),
 		Status:     FreeFlop,
 		BetChan:    make(chan channels.BetInfo),
-	}, nil
+	}
+	memento := NewGameMemento(*game)
+	game.memento = memento
+
+	return game, nil 
 }
 
 // SetPlayers 준비된 플레이어들의 순서와 smallBlind, bigBlind를 지정해줌
@@ -141,7 +149,13 @@ func (g *Game) SetPlayers() error {
 func (g *Game) Start() {
 
 	// 먼저 카드 분배
-	g.giveCardsToPlayers()
+	if err := g.giveCardsToPlayers(); err != nil {
+		var betResponse channels.BetResponse
+		betResponse.Error = gameerror.GiveCardsError
+		g.BetResponseChan <-betResponse
+		return 
+	}
+	
 
 	for {
 		req := <-g.BetChan
@@ -345,6 +359,11 @@ func (g *Game) giveCardsToPlayers() error {
 	}
 
 	if err := g.setRedis(); err != nil {
+		// 에러 발생시 롤백 
+		for _, p := range validPlayers {
+			p.Undo()
+		}
+		g.Undo()
 		return err 
 	}
 
@@ -486,9 +505,21 @@ func (g *Game) DistributeMoneyToWinners() ([]*player.Player, error) {
 
 		// DB에 저장 
 		if err := g.updatePlayersBalance(); err != nil {
+			// 저장 실패시 롤백
+			winner.Undo()
+			for _, loser := range losers {
+				loser.Undo()
+			}
 			return nil, err 
 		}
 		
+		// DB 저장 성공시 메멘토 업데이트
+		// DB에 저장까지 잘 성공했으면 메멘토 업데이트 
+		winner.SetMemento()
+		for _, loser := range losers {
+			loser.SetMemento()
+		}
+
 		return winners, nil
 	}
 
@@ -542,25 +573,21 @@ func (g *Game) DistributeMoneyToWinners() ([]*player.Player, error) {
 	err = g.updatePlayersBalance(winnersAndLosers...); if err != nil {
 		// DB업데이트 실패했으면 롤백 
 		for _, winner := range winners {
-			winner.GameBalance = winner.PrevGameBalance
-			winner.TotalBalance = winner.PrevTotalBalance
+			winner.Undo()
 		}
 		for _, loser := range losers {
-			loser.GameBalance = loser.PrevGameBalance
-			loser.TotalBalance = loser.PrevTotalBalance
+			loser.Undo()
 		}
 
 		return nil, err 
 	}
 	
-	// prevBalance값들 업데이트
+	// DB에 저장까지 잘 성공했으면 메멘토 업데이트 
 	for _, winner := range winners {
-		winner.PrevGameBalance = winner.GameBalance
-		winner.PrevTotalBalance = winner.TotalBalance
+		winner.SetMemento()
 	}
 	for _, loser := range losers {
-		loser.PrevGameBalance = loser.GameBalance
-		loser.PrevTotalBalance = loser.TotalBalance
+		loser.SetMemento()
 	}
 
 	return winners, nil 
@@ -574,7 +601,16 @@ func (g *Game) updatePlayersBalance(players ...*player.Player) error {
 	}
 
 	if err := g.userRepo.UpdateMultipleBalance(g.ctx, userIdWithBalances); err != nil {
+		// 실패시 롤백
+		for _, p := range players {
+			p.Undo()
+		}
 		return err 
+	}
+
+	// 디비 저장 성공시 메멘토 업데이트
+	for _, p := range players {
+		p.SetMemento()
 	}
 
 	return nil 
@@ -699,8 +735,11 @@ func (g *Game) HandleReady(nickname string, isReady bool) error {
 	p.IsReady = isReady
 
 	if err = g.setRedis(); err != nil {
+		p.Undo()
 		return err 
 	}
+
+	p.SetMemento()
 
 	return nil
 }
@@ -732,9 +771,12 @@ func (g *Game) AddPlayer(player *player.Player) error {
 	g.Players = append(g.Players, player)
 
 	if err := g.setRedis(); err != nil {
+		g.Undo()
 		return err 
 	}
-	
+
+	g.SetMemento()
+
 	return nil
 }
 
@@ -759,7 +801,23 @@ func (g *Game) getRedis() error {
 		return err 
 	}
 
-	g = &gameFromRedis
+	g.RoomLimit = gameFromRedis.RoomLimit
+	g.Players = gameFromRedis.Players
+	g.TotalBet = gameFromRedis.TotalBet
+	g.CurrentBet = gameFromRedis.CurrentBet
+	g.IsStarted = gameFromRedis.IsStarted
+
+	g.Deck = gameFromRedis.Deck
+	g.Status = gameFromRedis.Status
+	
+	g.SmallBlindIdx = gameFromRedis.SmallBlindIdx
+	g.BigBlindIdx = gameFromRedis.BigBlindIdx
+
+	g.FirstPlayerIdx = gameFromRedis.FirstPlayerIdx
+	g.IsFirstPlayerBet = gameFromRedis.IsFirstPlayerBet
+	g.CurrentPlayerIdx = gameFromRedis.CurrentPlayerIdx
+	g.BetLeaderIdx = gameFromRedis.BetLeaderIdx
+	
 	return nil 
 }
 
@@ -774,4 +832,40 @@ func (g *Game) UnmarshalBinary(data []byte) error {
 	}
  
 	return nil
+}
+
+func (g *Game) Undo() {
+	memento := g.memento
+
+	g.RoomId = memento.RoomId
+	g.RoomLimit = memento.RoomLimit
+	g.TotalBet = memento.TotalBet
+	g.CurrentBet = memento.CurrentBet
+	g.IsStarted = memento.IsStarted
+	g.Deck = memento.Deck
+	g.Status = memento.Status
+	g.SmallBlindIdx = memento.SmallBlindIdx
+	g.BigBlindIdx = memento.BigBlindIdx
+	g.FirstPlayerIdx = memento.FirstPlayerIdx
+	g.IsFirstPlayerBet = memento.IsFirstPlayerBet
+	g.CurrentPlayerIdx = memento.CurrentPlayerIdx
+	g.BetLeaderIdx = memento.BetLeaderIdx
+}
+
+func (g *Game) SetMemento() {
+	memento := g.memento
+
+	memento.RoomId = g.RoomId
+	memento.RoomLimit = g.RoomLimit
+	memento.TotalBet = g.TotalBet
+	memento.CurrentBet = g.CurrentBet
+	memento.IsStarted = g.IsStarted
+	memento.Deck = g.Deck
+	memento.Status = g.Status
+	memento.SmallBlindIdx = g.SmallBlindIdx
+	memento.BigBlindIdx = g.BigBlindIdx
+	memento.FirstPlayerIdx = g.FirstPlayerIdx
+	memento.IsFirstPlayerBet = g.IsFirstPlayerBet
+	memento.CurrentPlayerIdx = g.CurrentPlayerIdx
+	memento.BetLeaderIdx = g.BetLeaderIdx
 }
