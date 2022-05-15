@@ -1,10 +1,10 @@
 package gameroom
 
 import (
-	"github.com/PudgeKim/go-holdem/cacheserver"
+	"context"
+
 	"github.com/PudgeKim/go-holdem/domain/repository"
 	"github.com/PudgeKim/go-holdem/game"
-	"github.com/PudgeKim/go-holdem/gameerror"
 	"github.com/PudgeKim/go-holdem/player"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -13,30 +13,50 @@ import (
 const RoomLimit = 7
 
 type GameRoom struct {
-	Id       uuid.UUID  `json:"id"`
+	ctx context.Context
+
+	userRepo repository.UserRepository
+
+	Id       uuid.UUID  `json:"id"`        // roomId
 	Name     string     `json:"name"`      // 방 이름
 	HostName string     `json:"host_name"` // 방장 닉네임
 	Limit    uint       `json:"limit"`     // 방 하나에 최대 플레이어 수
 	Game     *game.Game `json:"-"`
-	userRepo repository.UserRepository
-	cacheRepo *redis.Client // redis같은 곳에 방에 대한 정보를 저장함 
+	
 }
 
-func NewGameRoom(name, hostName string, userRepo repository.UserRepository, redisClient *redis.Client) (*GameRoom, error) {
+func NewGameRoom(ctx context.Context, name, hostName string, userRepo repository.UserRepository, redisClient *redis.Client) (*GameRoom, error) {
 	id, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
 	}
 
 	return &GameRoom{
+		ctx: ctx,
+		userRepo: userRepo,
 		Id:       id,
 		Name:     name,
 		HostName: hostName,
 		Limit:    RoomLimit,
-		Game:     game.New(userRepo),
-		userRepo: userRepo,
-		redisClient: redisClient,
+		Game:     game.New(ctx, userRepo, redisClient, id),
+		
 	}, nil
+}
+
+func (g *GameRoom) StartGame() (*game.GameStartResponse, error) {
+	return g.Game.Start()
+}
+
+func (g *GameRoom) Bet(betInfo game.BetInfo) (*game.BetResponse, error) {
+	return g.Game.Bet(betInfo)
+}
+
+func (g *GameRoom) AddPlayer(player *player.Player) error {
+	return g.Game.AddPlayer(player)
+}
+
+func (g *GameRoom) FindPlayer(nickname string) (*player.Player, error) {
+	return g.Game.FindPlayer(nickname)
 }
 
 func (g *GameRoom) LeavePlayer(nickname string) error {
@@ -46,7 +66,7 @@ func (g *GameRoom) LeavePlayer(nickname string) error {
 	}
 
 	if !g.Game.IsStarted {
-		if err = g.removePlayer(*p); err != nil {
+		if err = g.removePlayer(p.Nickname); err != nil {
 			return err
 		}
 		return nil
@@ -58,58 +78,16 @@ func (g *GameRoom) LeavePlayer(nickname string) error {
 	return nil
 }
 
-func (g *GameRoom) HandleReady(nickname string, isReady bool) error {
-	p, err := g.FindPlayer(nickname)
-	if err != nil {
-		return err
-	}
-
-	if g.Game.IsStarted {
-		return gameerror.GameAlreadyStarted
-	}
-
-	p.IsReady = isReady
-	return nil
-}
-
-func (g *GameRoom) AddPlayer(player *player.Player) error {
-	_, err := g.FindPlayer(player.Nickname)
-	// nil이면 플레이어가 이미 존재하는데 또 요청이 온 것
-	if err == nil {
-		return gameerror.PlayerAlreadyExists
-	}
-
-	if len(g.Game.Players) > RoomLimit {
-		return gameerror.PlayerLimitationError
-	}
-
-	g.Game.Players = append(g.Game.Players, player)
-	return nil
-}
-
-func (g *GameRoom) removePlayer(p player.Player) error {
+func (g *GameRoom) removePlayer(nickname string) error {
 	removeIndex := -1
 	for i := 0; i < len(g.Game.Players); i++ {
-		if p.Nickname == g.Game.Players[i].Nickname {
+		if nickname == g.Game.Players[i].Nickname {
 			removeIndex = i
 			break
 		}
 	}
 
-	if removeIndex == -1 {
-		return gameerror.NoPlayerExists
-	}
-
 	g.Game.Players = append(g.Game.Players[:removeIndex], g.Game.Players[removeIndex+1:]...)
 
 	return nil
-}
-
-func (g *GameRoom) FindPlayer(nickname string) (*player.Player, error) {
-	for _, p := range g.Game.Players {
-		if p.Nickname == nickname {
-			return p, nil
-		}
-	}
-	return nil, gameerror.NoPlayerExists
 }

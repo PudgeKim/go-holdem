@@ -62,11 +62,7 @@ type Game struct {
 	BetLeaderIdx     uint // 누군가 베팅을 추가로하면 해당 플레이어 이전까지 다시 베팅을 돌아야하기 때문에 저장해둠
 }
 
-func New(userRepo repository.UserRepository, redisClient *redis.Client, ctx context.Context) (*Game, error) {
-	roomId, err := uuid.NewRandom()
-	if err != nil {
-		return nil, err
-	}
+func New(ctx context.Context, userRepo repository.UserRepository, redisClient *redis.Client, roomId uuid.UUID) *Game {
 	game := &Game{
 		userRepo: userRepo,
 		redisClient: redisClient,
@@ -83,7 +79,7 @@ func New(userRepo repository.UserRepository, redisClient *redis.Client, ctx cont
 	memento := NewGameMemento(*game)
 	game.memento = memento
 
-	return game, nil 
+	return game
 }
 
 
@@ -102,6 +98,8 @@ func (g *Game) Start() (*GameStartResponse, error) {
 		return nil, err 
 	}
 
+	g.IsStarted = true 
+	
 	if err := g.setRedis(); err != nil {
 		g.Undo()
 		return nil, err 
@@ -110,6 +108,7 @@ func (g *Game) Start() (*GameStartResponse, error) {
 	firstPlayer := g.Players[g.FirstPlayerIdx].Nickname
 	smallBlind := g.Players[g.SmallBlindIdx].Nickname
 	bigBlind := g.Players[g.BigBlindIdx].Nickname
+	
 	
 	gameStartResponse := NewGameStartResponse(readyPlayers, firstPlayer, smallBlind, bigBlind)
 	return gameStartResponse, nil 
@@ -173,12 +172,12 @@ func (g *Game) setPlayers() ([]string, error) {
 	return readyPlayersName, nil
 }
 
-func (g *Game) Game(betInfo BetInfo) (*BetResponse, error) {
+func (g *Game) Bet(betInfo BetInfo) (*BetResponse, error) {
 	// 게임 준비 고려해서 코드 짜야됨
 
 	var betResponse BetResponse
 
-	nextPlayerName, isPlayerDead, playerCurBet, playerTotBet, gameCurBet, gameTotBet, isBetEnd, err := g.HandleBet(betInfo)
+	nextPlayerName, isPlayerDead, playerCurBet, playerTotBet, gameCurBet, gameTotBet, isBetEnd, err := g.handleBet(betInfo)
 	if err != nil {
 		return nil, err 
 	}
@@ -249,9 +248,9 @@ func (g *Game) Game(betInfo BetInfo) (*BetResponse, error) {
 	return &betResponse, nil 
 }
 
-// HandleBet 모든 플레이어들의 베팅이 종료되는 경우면 true를 리턴함
+// handleBet 모든 플레이어들의 베팅이 종료되는 경우면 true를 리턴함
 // 다음 플레이어, 현재플레이어 isDead, 현재 플레이어의 currentBet, totalBet, 현재 게임의 currentBet, totalBet, 베팅종료 리턴
-func (g *Game) HandleBet(betInfo BetInfo) (string, bool, uint64, uint64, uint64, uint64, bool, error) {
+func (g *Game) handleBet(betInfo BetInfo) (string, bool, uint64, uint64, uint64, uint64, bool, error) {
 	p, err := g.FindPlayer(betInfo.PlayerName)
 	if err != nil {
 		return "", false, 0, 0, 0, 0, false, err
@@ -436,43 +435,6 @@ func (g *Game) clearPlayersCurrentBet() error {
 		return err 
 	}
 	return nil
-}
-
-// 나간 플레이어들 고려해서 인덱스 변경해야함
-// smallBlind와 bigBlind가 바뀌었는지 리턴
-func (g *Game) removeLeftPlayers() error {
-	if err := g.getRedis(); err != nil {
-		return err 
-	}
-
-	var indexesToRemove []int
-
-	for idx, p := range g.Players {
-		if p.IsLeft {
-			if g.SmallBlindIdx == uint(idx) {
-				g.SmallBlindIdx = g.getNextIdx(uint(idx))
-			}
-			if g.BigBlindIdx == uint(idx) {
-				g.BigBlindIdx = g.getNextIdx(uint(idx))
-			}
-
-			indexesToRemove = append(indexesToRemove, idx)
-		}
-	}
-
-	for _, idx := range indexesToRemove {
-		g.Players = removePlayer(g.Players, idx)
-	}
-
-	if err := g.setRedis(); err != nil {
-		return err 
-	}
-
-	return nil 
-}
-
-func removePlayer(players []*player.Player, s int) []*player.Player {
-	return append(players[:s], players[s+1:]...)
 }
 
 // 현재 플레이어들 중 나가지도 않고 죽지도 않고 준비도 된 플레이어들만 리턴
@@ -783,6 +745,44 @@ func (g *Game) AddPlayer(player *player.Player) error {
 
 	return nil
 }
+
+// 나간 플레이어들 고려해서 인덱스 변경해야함
+// smallBlind와 bigBlind가 바뀌었는지 리턴
+func (g *Game) removeLeftPlayers() error {
+	if err := g.getRedis(); err != nil {
+		return err 
+	}
+
+	var indexesToRemove []int
+
+	for idx, p := range g.Players {
+		if p.IsLeft {
+			if g.SmallBlindIdx == uint(idx) {
+				g.SmallBlindIdx = g.getNextIdx(uint(idx))
+			}
+			if g.BigBlindIdx == uint(idx) {
+				g.BigBlindIdx = g.getNextIdx(uint(idx))
+			}
+
+			indexesToRemove = append(indexesToRemove, idx)
+		}
+	}
+
+	for _, idx := range indexesToRemove {
+		g.Players = removePlayerByIndex(g.Players, idx)
+	}
+
+	if err := g.setRedis(); err != nil {
+		return err 
+	}
+
+	return nil 
+}
+
+func removePlayerByIndex(players []*player.Player, s int) []*player.Player {
+	return append(players[:s], players[s+1:]...)
+}
+
 
 func (g Game) setRedis() error {
 	statusCmd := g.redisClient.Set(g.ctx, g.RoomId.String(), g, RedisTimeDuration)
