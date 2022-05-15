@@ -19,7 +19,7 @@ type GameRoom struct {
 	Limit    uint       `json:"limit"`     // 방 하나에 최대 플레이어 수
 	Game     *game.Game `json:"-"`
 	userRepo repository.UserRepository
-	cacheRepo cacheserver.CacheRepository // redis같은 곳에 방에 대한 정보를 저장함 
+	cacheRepo *redis.Client // redis같은 곳에 방에 대한 정보를 저장함 
 }
 
 func NewGameRoom(name, hostName string, userRepo repository.UserRepository, redisClient *redis.Client) (*GameRoom, error) {
@@ -35,7 +35,7 @@ func NewGameRoom(name, hostName string, userRepo repository.UserRepository, redi
 		Limit:    RoomLimit,
 		Game:     game.New(userRepo),
 		userRepo: userRepo,
-		redisClient: redisClient
+		redisClient: redisClient,
 	}, nil
 }
 

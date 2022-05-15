@@ -4,7 +4,6 @@ import (
 	"context"
 	"net/http"
 
-	"github.com/PudgeKim/go-holdem/channels"
 	"github.com/PudgeKim/go-holdem/game"
 	"github.com/PudgeKim/go-holdem/gameerror"
 	"github.com/PudgeKim/go-holdem/gamerooms"
@@ -12,7 +11,7 @@ import (
 	"github.com/google/uuid"
 )
 
-var betResponseChanMap = make(map[uuid.UUID]chan channels.BetResponse)
+var betResponseChanMap = make(map[uuid.UUID]chan game.BetResponse)
 
 type GameHandler struct {
 	rooms       gamerooms.GameRooms
@@ -97,7 +96,7 @@ func (g GameHandler) Bet(c *gin.Context) {
 		return
 	}
 
-	betInfo := channels.BetInfo{
+	betInfo := game.BetInfo{
 		PlayerName: user.Name,
 		BetAmount:  req.BetAmount,
 		IsDead:     req.IsDead,

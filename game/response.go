@@ -1,7 +1,6 @@
-package channels
+package game
 
-// 베팅 관련 처리를 한 후 게임으로부터 온 응답을 받아서
-// 프론트로 전달해주기 위해 필요한 채널
+// 베팅 관련 처리를 한 후 프론트로 베팅처리결과 전달
 type BetResponse struct {
 	Error            error  `json:"error"`
 	IsBetEnd         bool   `json:"is_bet_end"` // true면 플레이어들의 베팅이 모두 끝나서 다음 턴으로 넘어감
@@ -13,4 +12,20 @@ type BetResponse struct {
 	NextPlayerName   string `json:"next_player_name"`
 	GameStatus       string `json:"game_status"` // FreeFlop, Flop, Turn, River
 	Winners 		[]string `json:"winners,omitempty"`
+}
+
+type GameStartResponse struct {
+	ReadyPlayers []string 
+	FirstPlayer string 
+	SmallBlind string 
+	BigBlind string 
+}
+
+func NewGameStartResponse(readyPlayers []string, firstPlayer, smallBlind, bigBlind string) *GameStartResponse {
+	return &GameStartResponse{
+		readyPlayers,
+		firstPlayer,
+		smallBlind,
+		bigBlind,
+	}
 }
