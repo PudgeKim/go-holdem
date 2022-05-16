@@ -1,12 +1,4 @@
-package game
-
-type BetType int
-
-const (
-	Check BetType = iota
-	Raise
-	AllIn
-)
+package gameconst
 
 const (
 	FreeFlop = "FreeFlop"
@@ -14,4 +6,12 @@ const (
 	Turn     = "Turn"
 	River    = "River"
 	GameEnd  = "GameEnd"
+)
+
+type BetType int
+
+const (
+	Check BetType = iota
+	Raise
+	AllIn
 )

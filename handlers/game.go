@@ -11,8 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-var betResponseChanMap = make(map[uuid.UUID]chan game.BetResponse)
-
 type GameHandler struct {
 	rooms       gamerooms.GameRooms
 }

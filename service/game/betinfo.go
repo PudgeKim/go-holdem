@@ -1,4 +1,4 @@
-package game
+package gameservice
 
 type BetInfo struct {
 	PlayerName string

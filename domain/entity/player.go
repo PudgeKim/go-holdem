@@ -1,11 +1,11 @@
-package player
+package entity
 
 import (
 	"github.com/PudgeKim/go-holdem/card"
 )
 
 type Player struct {
-	memento *PlayerMemento
+	Memento *PlayerMemento
 	Id 			 int64 // User struct의 id
 	Nickname     string
 	IsReady      bool // 게임준비
@@ -36,13 +36,13 @@ func New(id int64, nickname string, totalBalance, gameBalance uint64) *Player {
 		CurrentBet:   0,
 	}
 	memento := NewPlayerMemento(*player)
-	player.memento = memento
+	player.Memento = memento
 
 	return player
 }
 
 func (p *Player) Undo() {
-	memento := p.memento
+	memento := p.Memento
 
 	p.Id=  memento.Id			 
 	p.Nickname= memento.Nickname
@@ -61,7 +61,7 @@ func (p *Player) Undo() {
 }
 
 func (p *Player) SetMemento() {
-	memento := p.memento
+	memento := p.Memento
 
 	memento.Id=  p.Id			 
 	memento.Nickname= p.Nickname
@@ -79,4 +79,34 @@ func (p *Player) SetMemento() {
 	memento.BestCards=        p.BestCards
 }
 
+type PlayerMemento struct {
+	Id 			 int64 
+	Nickname     string
+	IsReady      bool 
+	IsDead       bool
+	IsLeft       bool 
+	IsAllIn      bool
+	TotalBalance uint64        
+	GameBalance  uint64         
+	TotalBet     uint64        
+	CurrentBet   uint64         
+	Hands        []card.Card    
+	HandsRank    card.HandsRank 
+	HighCard     card.Rank      
+	BestCards    []card.Card    
+}
 
+func NewPlayerMemento(player Player) *PlayerMemento {
+	return &PlayerMemento{
+		Id: player.Id,
+		Nickname: player.Nickname,
+		IsReady: player.IsReady,
+		IsDead: player.IsDead,
+		IsLeft: player.IsLeft,
+		IsAllIn: player.IsAllIn,
+		TotalBalance: player.TotalBalance,
+		GameBalance: player.GameBalance,
+		TotalBet: player.TotalBet,
+		CurrentBet: player.CurrentBet,
+	}
+}
