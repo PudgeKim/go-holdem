@@ -54,7 +54,7 @@ func (g *GameService) CreateGame(ctx context.Context) (*entity.Game, error) {
 }
 
 func (g *GameService) DeleteGame(ctx context.Context, roomId string) error {
-	return g.DeleteGame(ctx, roomId)
+	return g.gameRepo.DeleteGame(ctx, roomId)
 }
 
 func (g *GameService) FindPlayer(ctx context.Context, roomId string, nickname string) (*entity.Player, error) {

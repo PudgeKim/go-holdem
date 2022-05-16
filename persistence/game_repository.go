@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/PudgeKim/go-holdem/domain/entity"
+	"github.com/PudgeKim/go-holdem/domain/repository"
 	"github.com/PudgeKim/go-holdem/gameerror"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
@@ -19,7 +20,7 @@ type GameRepository struct {
 	redisClient *redis.Client
 }
 
-func NewGameRepository(redisClient *redis.Client) *GameRepository {
+func NewGameRepository(redisClient *redis.Client) repository.GameRepository {
 	return &GameRepository{
 		redisClient: redisClient,
 	}
