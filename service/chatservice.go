@@ -19,15 +19,8 @@ func NewChatService(chatRepo repository.ChatRepository) *ChatService {
 
 func (c *ChatService) Subscribe(ctx context.Context, roomId string, chatChan chan string) error {
 	subscribeChan := getSubscribeChan(roomId)
-	isSubscribed, err := c.chatRepo.IsSubscribed(subscribeChan)
-	if err != nil {
-		return err
-	}
-
-	if !isSubscribed {
-		if err := c.chatRepo.Subscribe(ctx, subscribeChan, chatChan); err != nil {
-			return err 
-		}
+	if err := c.chatRepo.Subscribe(ctx, subscribeChan, chatChan); err != nil {
+		return err 
 	}
 	
 	return nil 

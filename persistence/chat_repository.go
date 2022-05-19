@@ -22,15 +22,21 @@ func NewChatRepository(redisClient *redis.Client) repository.ChatRepository {
 }
 
 func (c *ChatRepository) Subscribe(ctx context.Context, subscribeChan string, chatChan chan string) error {
-	pubsub := c.redisClient.Subscribe(ctx, subscribeChan)
-	c.pubsubMap[subscribeChan] = pubsub
-	go func() {
-		ch := pubsub.Channel()
-		for msg := range ch {
-			chatChan<- msg.Payload
-		}
-	}()
+	if c.pubsubMap[subscribeChan] == nil {
+		pubsub := c.redisClient.Subscribe(ctx, subscribeChan)
+		c.pubsubMap[subscribeChan] = pubsub
+	}
+
+	go c.handleMessage(subscribeChan, chatChan)
 	return nil 
+}
+
+func (c *ChatRepository) handleMessage(subscribeChan string, chatChan chan string) {
+	pubsub := c.pubsubMap[subscribeChan]
+	ch := pubsub.Channel()
+	for msg := range ch {
+		chatChan <-msg.Payload
+	}
 }
 
 func (c *ChatRepository) UnSubscribe(ctx context.Context, subscribeChan string) error {

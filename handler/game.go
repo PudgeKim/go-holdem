@@ -25,6 +25,13 @@ type JoinRoomReq struct {
 	RoomId string `uri:"roomid" binding:"required"`
 }
 
+type GameReq struct {
+	RoomId string `json:"room_id" binding:"required"`
+	Type string `json:"type" binding:"required"`
+	Nickname string `json:"nickname" binding:"required"`
+	Message string `json:"message`
+}
+
 func (g *GameHandler) JoinRoom(c *gin.Context) {
 	var joinRoomReq JoinRoomReq
 
@@ -62,14 +69,18 @@ func (g *GameHandler) JoinRoom(c *gin.Context) {
 	}()
 
 	for {
-		mt, msg, err := ws.ReadMessage()
-		if err != nil {
-			fmt.Println("JoinRoomReadMessageErr: ", err.Error())
+		var gameReq GameReq
+
+		if err := ws.ReadJSON(&gameReq); err != nil {
+			fmt.Println("ReadJsonErr: ", err.Error())
 			break 
 		}
 
-		fmt.Println(mt, msg)
-
+		err := g.chatService.PublishMessage(c, gameReq.RoomId, gameReq.Nickname, gameReq.Message)
+		if err != nil {
+			fmt.Println("publishMsgErr: ", err.Error())
+			break 
+		}
 
 	}
 }
