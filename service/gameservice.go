@@ -1,4 +1,4 @@
-package gameservice
+package service
 
 import (
 	"context"
@@ -49,8 +49,8 @@ func (g *GameService) SaveGame(ctx context.Context, roomId string, game *entity.
 	return g.gameRepo.SaveGame(ctx, roomId, game)
 }
 
-func (g *GameService) CreateGame(ctx context.Context) (*entity.Game, error) {
-	return g.gameRepo.CreateGame(ctx)
+func (g *GameService) CreateGame(ctx context.Context, hostName string) (*entity.Game, error) {
+	return g.gameRepo.CreateGame(ctx, hostName)
 }
 
 func (g *GameService) DeleteGame(ctx context.Context, roomId string) error {
@@ -61,8 +61,19 @@ func (g *GameService) FindPlayer(ctx context.Context, roomId string, nickname st
 	return g.gameRepo.FindPlayer(ctx, roomId, nickname)
 }
 
-func (g *GameService) StartGame(ctx context.Context) (*GameStartResponse, error) {
-	game, err := g.CreateGame(ctx); if err != nil {
+func (g *GameService) FindPlayerFromDB(ctx context.Context, nickname string) (*entity.User, error) {
+	_, err := g.userRepo.FindByNickname(ctx, nickname); if err != nil {
+		return nil, err 
+	}
+	return nil, nil
+}
+
+func (g *GameService) StartGame(ctx context.Context, hostName string) (*GameStartResponse, error) {
+	_, err := g.FindPlayerFromDB(ctx, hostName); if err != nil {
+		return nil, err 
+	}
+	
+	game, err := g.CreateGame(ctx, hostName); if err != nil {
 		return nil, err 
 	}
 
@@ -156,6 +167,7 @@ func (g *GameService) Bet(ctx context.Context, roomId string, betInfo BetInfo) (
 	case River:
 		if isBetEnd {
 			// 게임 종료
+			game.IsStarted = false 
 			game.Status = GameEnd
 			betResponse.GameStatus = GameEnd
 
@@ -185,7 +197,6 @@ func (g *GameService) Bet(ctx context.Context, roomId string, betInfo BetInfo) (
 			game.CurrentBet = 0
 			game.TotalBet = 0
 			if err := g.SaveGame(ctx, game.RoomId.String(), game); err != nil {
-				
 				return nil, err 
 			}	
 		}
@@ -220,7 +231,6 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 		p.IsDead = true
 		nextPlayerIdx, err := getNextPlayerIdx(game)
 		if err != nil {
-			p.Undo()
 			return "", false, 0, 0, 0, 0, false, err
 		}
 		nextPlayer := game.Players[nextPlayerIdx].Nickname
@@ -240,14 +250,12 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 
 	nextPlayerIdx, err := getNextPlayerIdx(game)
 	if err != nil {
-		p.Undo()
 		return "", false, 0, 0, 0, 0, false, err
 	}
 
 	nextPlayerName := game.Players[nextPlayerIdx].Nickname
 	currentPlayerIdx, err := getPlayerIdx(game.Players, p.Nickname)
 	if err != nil {
-		p.Undo()
 		return "", false, 0, 0, 0, 0, false, err
 	}
 
@@ -265,8 +273,6 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 			game.CurrentPlayerIdx = game.FirstPlayerIdx // 다음 베팅을 위해서 초기화
 			clearPlayersCurrentBet(game.Players)
 			if err := g.SaveGame(ctx, game.RoomId.String(), game); err != nil {
-				p.Undo()
-				game.Undo()
 			}
 			return nextPlayerName, false, p.CurrentBet, p.TotalBet, game.CurrentBet, game.TotalBet, true, nil
 		}
@@ -275,8 +281,6 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 		game.CurrentPlayerIdx = nextPlayerIdx
 
 		if err := g.SaveGame(ctx, game.RoomId.String(), game); err != nil {
-			p.Undo()
-			game.Undo()
 			return "", false, 0, 0, 0, 0, false, err
 		}
 
@@ -363,11 +367,6 @@ func (g *GameService) updatePlayersBalance(players ...*entity.Player) error {
 			p.Undo()
 		}
 		return err 
-	}
-
-	// DB 저장 성공시 메멘토 업데이트
-	for _, p := range players {
-		p.SetMemento()
 	}
 
 	return nil 

@@ -1,4 +1,4 @@
-package redisclient
+package cacheserver
 
 import "github.com/go-redis/redis/v8"
 
@@ -9,18 +9,22 @@ const (
 	testPassword = ""
 )
 
-var redisOptions = &redis.Options{
+var redisConfig = &redis.Options{
 	Addr: address,
 	Password: password,
 	DB: 0,
 }
 
-var testRedisOptions = &redis.Options{
+var testRedisConfig = &redis.Options{
 	Addr: testAddress,
 	Password: testPassword,
 	DB: 0,
 }
 
-func New(redisOptions *redis.Options) *redis.Client {
-	return redis.NewClient(redisOptions)
+func NewRedis() *redis.Client {
+	return redis.NewClient(redisConfig)
+}
+
+func NewTestRedis() *redis.Client {
+	return redis.NewClient(testRedisConfig)
 }

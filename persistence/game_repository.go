@@ -44,19 +44,18 @@ func (g *GameRepository) GetGame(ctx context.Context, roomId string) (*entity.Ga
 func (g *GameRepository) SaveGame(ctx context.Context, roomId string, game *entity.Game) error {
 	statusCmd := g.redisClient.Set(ctx, roomId, game, REDIS_TIME_DURATION)
 	if statusCmd.Err() != nil {
-		game.Undo()
 		return statusCmd.Err()
 	}
 	return nil 
 }
 
-func (g *GameRepository) CreateGame(ctx context.Context) (*entity.Game, error) {
+func (g *GameRepository) CreateGame(ctx context.Context, hostName string) (*entity.Game, error) {
 	roomId, err := uuid.NewRandom()
 	if err != nil {
 		return nil, err
 	}
 
-	game := entity.NewGame(roomId, ROOM_LIMIT)
+	game := entity.NewGame(roomId, ROOM_LIMIT, hostName)
 	return game, nil 
 }
 
@@ -97,8 +96,6 @@ func (g *GameRepository) AddPlayer(ctx context.Context, roomId string, player *e
 	if err := g.SaveGame(ctx, roomId, game); err != nil {
 		return err 
 	}
-
-	game.SetMemento()
 
 	return nil
 }

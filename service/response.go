@@ -1,4 +1,4 @@
-package gameservice
+package service
 
 // 베팅 관련 처리를 한 후 프론트로 베팅처리결과 전달
 type BetResponse struct {

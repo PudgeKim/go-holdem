@@ -5,7 +5,7 @@ import (
 )
 
 type Player struct {
-	Memento *PlayerMemento
+	Memento PlayerMemento
 	Id 			 int64 // User struct의 id
 	Nickname     string
 	IsReady      bool // 게임준비
@@ -96,8 +96,8 @@ type PlayerMemento struct {
 	BestCards    []card.Card    
 }
 
-func NewPlayerMemento(player Player) *PlayerMemento {
-	return &PlayerMemento{
+func NewPlayerMemento(player Player) PlayerMemento {
+	return PlayerMemento{
 		Id: player.Id,
 		Nickname: player.Nickname,
 		IsReady: player.IsReady,

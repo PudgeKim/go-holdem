@@ -1,9 +1,10 @@
-package handlers
+package handler
 
 import (
 	"encoding/json"
-	"github.com/gin-gonic/gin"
 	"net/http"
+
+	"github.com/gin-gonic/gin"
 )
 
 func badRequestWithError(c *gin.Context, err error) {

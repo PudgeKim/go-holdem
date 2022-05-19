@@ -29,6 +29,16 @@ func (r *userRepository) FindOne(ctx context.Context, id int64) (*entity.User, e
 	return &user, nil 
 }
 
+func (r *userRepository) FindByNickname(ctx context.Context, nickname string) (*entity.User, error) {
+	var user entity.User
+
+	row := r.db.QueryRowx(`SELECT * FROM users WHERE nickname=$1`, nickname)
+	err := row.StructScan(&user); if err != nil {
+		return nil, err 
+	}
+	return &user, nil 
+}
+
 func (r *userRepository) Save(ctx context.Context, user *entity.User) error {
 	if _, err := r.db.Exec(`INSERT INTO users (nickname, email, balance) VALUES ($1, $2, $3)`, user.Nickname, user.Email, 0); err != nil {
 		return err 
