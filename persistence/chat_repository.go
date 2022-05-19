@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 
 	"github.com/PudgeKim/go-holdem/domain/repository"
 	"github.com/go-redis/redis/v8"
@@ -12,12 +13,14 @@ import (
 type ChatRepository struct {
 	redisClient *redis.Client
 	pubsubMap map[string]*redis.PubSub
+	chatChanMap map[string][]chan string 
 }
 
 func NewChatRepository(redisClient *redis.Client) repository.ChatRepository {
 	return &ChatRepository{
 		redisClient: redisClient,
 		pubsubMap: make(map[string]*redis.PubSub),
+		chatChanMap: make(map[string][]chan string),
 	}
 }
 
@@ -27,15 +30,21 @@ func (c *ChatRepository) Subscribe(ctx context.Context, subscribeChan string, ch
 		c.pubsubMap[subscribeChan] = pubsub
 	}
 
-	go c.handleMessage(subscribeChan, chatChan)
+	c.chatChanMap[subscribeChan] = append(c.chatChanMap[subscribeChan], chatChan)
+	go c.handleMessage(subscribeChan)
 	return nil 
 }
 
-func (c *ChatRepository) handleMessage(subscribeChan string, chatChan chan string) {
+func (c *ChatRepository) handleMessage(subscribeChan string) {
 	pubsub := c.pubsubMap[subscribeChan]
 	ch := pubsub.Channel()
 	for msg := range ch {
-		chatChan <-msg.Payload
+		// 같은 방안에 있는 사람들에게 broadcast 해줘야함 
+		for _, chatChan := range c.chatChanMap[subscribeChan] {
+			fmt.Println(msg.Payload, c.chatChanMap[subscribeChan])
+			chatChan <-msg.Payload
+		}
+		
 	}
 }
 
@@ -49,8 +58,8 @@ func (c *ChatRepository) UnSubscribe(ctx context.Context, subscribeChan string) 
 }
 
 func (c *ChatRepository) PublishMessage(ctx context.Context, subscribeChan string, nickname string, message string) error {
-	pubsubMsg := ChatMessage{Nickname: nickname, Message: message}
-	if err := c.redisClient.Publish(ctx, subscribeChan, pubsubMsg).Err(); err != nil {
+	chatMsg := ChatMessage{Nickname: nickname, Message: message}
+	if err := c.redisClient.Publish(ctx, subscribeChan, chatMsg).Err(); err != nil {
 		return err 
 	}
 	return nil 

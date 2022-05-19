@@ -24,7 +24,6 @@ func (c *ChatService) Subscribe(ctx context.Context, roomId string, chatChan cha
 	}
 	
 	return nil 
-	
 }
 
 func (c *ChatService) UnSubscribe(ctx context.Context, roomId string) error {

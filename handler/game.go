@@ -11,13 +11,15 @@ import (
 
 type GameHandler struct {
 	upgrader *websocket.Upgrader
-	chatService service.ChatService
+	chatService *service.ChatService
+	gameService *service.GameService
 }
 
-func NewGameHandler(upgrader *websocket.Upgrader, chatService service.ChatService) *GameHandler {
+func NewGameHandler(upgrader *websocket.Upgrader, chatService *service.ChatService) *GameHandler {
 	return &GameHandler{
 		upgrader: upgrader,
 		chatService: chatService,
+		//gameService: gameService,
 	}
 }
 
@@ -25,11 +27,15 @@ type JoinRoomReq struct {
 	RoomId string `uri:"roomid" binding:"required"`
 }
 
+// Type이 Bet이냐 Chat이냐에 따라 
+// 요구 필드가 달라짐 
 type GameReq struct {
 	RoomId string `json:"room_id" binding:"required"`
 	Type string `json:"type" binding:"required"`
 	Nickname string `json:"nickname" binding:"required"`
-	Message string `json:"message`
+	Message string `json:"message"`
+	BetAmount  uint64 `json:"bet_amount"`
+	IsDead     bool `json:"is_dead"`
 }
 
 func (g *GameHandler) JoinRoom(c *gin.Context) {
@@ -58,12 +64,13 @@ func (g *GameHandler) JoinRoom(c *gin.Context) {
 		return 
 	}
 	
+	// 다른유저들로부터 채팅이 오면 받아서 전달 
 	go func ()  {
 		for {
 			chatMsg := <-chatChan
 			fmt.Println("chatMsg: ", chatMsg)
 			if err := ws.WriteMessage(1, []byte(chatMsg)); err != nil {
-				panic(fmt.Sprintf("goroutine WriteMessage Err: %s", err.Error()))
+				panic(fmt.Sprintf("goroutine WriteMessage Err: %s", err.Error())) // panic은 임시용 (나중에 다른걸로 변경)
 			}
 		}
 	}()
@@ -76,11 +83,17 @@ func (g *GameHandler) JoinRoom(c *gin.Context) {
 			break 
 		}
 
-		err := g.chatService.PublishMessage(c, gameReq.RoomId, gameReq.Nickname, gameReq.Message)
-		if err != nil {
-			fmt.Println("publishMsgErr: ", err.Error())
-			break 
+		switch gameReq.Type {
+		case "chat":
+			err := g.chatService.PublishMessage(c, gameReq.RoomId, gameReq.Nickname, gameReq.Message)
+			if err != nil {
+				fmt.Println("publishMsgErr: ", err.Error())
+				break 
+			}
+		case "bet":
+				
 		}
+		
 
 	}
 }

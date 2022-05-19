@@ -15,18 +15,24 @@ const (
 )
 
 func main() {
+	// postgres, err := db.NewPostgresDB(db.DBConfig)
+	// if err != nil {
+	// 	panic(err)
+	// }
 	redisClient := cacheserver.NewRedis()
 
 
 	chatRepo := persistence.NewChatRepository(redisClient)
-
+	// gameRepo := persistence.NewGameRepository(redisClient)
+	// userRepo := persistence.NewUserRepository(postgres)
 
 	chatService := service.NewChatService(chatRepo)
+	//gameService := service.NewGameService(userRepo, gameRepo)
 
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
-	gameHandler := handler.NewGameHandler(&upgrader, *chatService)
+	gameHandler := handler.NewGameHandler(&upgrader, chatService)
 
 	myHandlers := handler.NewHandlers(gameHandler)
 

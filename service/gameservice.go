@@ -28,14 +28,12 @@ const (
 // firstPlayer = bigBlind 다음 인덱스에 해당하는 플레이어 (만약 플레이어가 2명이라면 smallBlind에 해당되는 플레이어)
 
 type GameService struct {
-	ctx context.Context
 	userRepo repository.UserRepository
 	gameRepo repository.GameRepository
 }
 
-func New(ctx context.Context, userRepo repository.UserRepository, gameRepo repository.GameRepository) *GameService {
+func NewGameService(userRepo repository.UserRepository, gameRepo repository.GameRepository) *GameService {
 	return &GameService{
-		ctx: ctx,
 		userRepo: userRepo,
 		gameRepo: gameRepo,
 	}
@@ -174,7 +172,7 @@ func (g *GameService) Bet(ctx context.Context, roomId string, betInfo BetInfo) (
 			// 승자 계산과 승자와 패자 잔고 업데이트
 			winners, losers := g.distributeMoneyToWinners(game)
 			winnersAndLosers := append(winners, losers...)
-			if err := g.updatePlayersBalance(winnersAndLosers...); err != nil {
+			if err := g.updatePlayersBalance(ctx, winnersAndLosers...); err != nil {
 				return nil, err 
 			}
 			
@@ -354,14 +352,14 @@ func (g *GameService) distributeMoneyToWinners(game *entity.Game) (winners []*en
 	return winners, losers
 }
 
-func (g *GameService) updatePlayersBalance(players ...*entity.Player) error {
+func (g *GameService) updatePlayersBalance(ctx context.Context, players ...*entity.Player) error {
 	var userIdWithBalances []repository.UserIdWithBalance
 
 	for _, p := range players {
 		userIdWithBalances = append(userIdWithBalances, repository.NewUserIdWithBalance(p.Id, p.TotalBalance))
 	}
 
-	if err := g.userRepo.UpdateMultipleBalance(g.ctx, userIdWithBalances); err != nil {
+	if err := g.userRepo.UpdateMultipleBalance(ctx, userIdWithBalances); err != nil {
 		// 실패시 롤백
 		for _, p := range players {
 			p.Undo()
