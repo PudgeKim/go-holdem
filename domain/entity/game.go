@@ -50,6 +50,30 @@ func NewGame(roomId uuid.UUID, roomLimit uint, hostName string) *Game {
 	return &game
 }
 
+func (g *Game) GetReadyPlayers() []*Player {
+	var readyPlayers []*Player
+
+	for _, p := range g.Players {
+		if p.IsReady {
+			readyPlayers = append(readyPlayers, p)
+		}
+	}
+
+	return readyPlayers
+}
+
+func (g *Game) GetFirstPlayer() *Player {
+	return g.Players[g.FirstPlayerIdx]
+}
+
+func (g *Game) GetSmallBlind() *Player {
+	return g.Players[g.SmallBlindIdx]
+}
+
+func (g *Game) GetBigBlind() *Player {
+	return g.Players[g.BigBlindIdx]
+}
+
 func (g *Game) Undo() {
 	memento := g.Memento
 

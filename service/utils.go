@@ -54,7 +54,14 @@ func getReadyPlayers(players []*entity.Player) []*entity.Player {
 // 게임이 처음 시작됬는지 아닌지에 따라 구별함
 func setPlayers(game *entity.Game) ([]string, error) {
 	
-	if len(game.Players) < 2 {
+	playerCnt := 0
+	for _, p := range game.Players {
+		if p != nil {
+			playerCnt++
+		}
+	}
+
+	if playerCnt < 2 {
 		return nil, gameerror.LackOfPlayers
 	}
 

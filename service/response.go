@@ -15,10 +15,10 @@ type BetResponse struct {
 }
 
 type GameStartResponse struct {
-	ReadyPlayers []string 
-	FirstPlayer string 
-	SmallBlind string 
-	BigBlind string 
+	ReadyPlayers []string `json:"ready_players"`
+	FirstPlayer string `json:"first_player"`
+	SmallBlind string `json:"small_blind"`
+	BigBlind string `json:"big_blind"`
 }
 
 func NewGameStartResponse(readyPlayers []string, firstPlayer, smallBlind, bigBlind string) *GameStartResponse {

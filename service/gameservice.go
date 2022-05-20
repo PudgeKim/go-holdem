@@ -2,10 +2,12 @@ package service
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/PudgeKim/go-holdem/domain/entity"
 	"github.com/PudgeKim/go-holdem/domain/repository"
 	"github.com/PudgeKim/go-holdem/gameerror"
+	"github.com/go-redis/redis/v8"
 )
 type BetType string 
 const (
@@ -66,37 +68,55 @@ func (g *GameService) FindPlayerFromDB(ctx context.Context, nickname string) (*e
 	return nil, nil
 }
 
-func (g *GameService) StartGame(ctx context.Context, hostName string) (*GameStartResponse, error) {
+func (g *GameService) StartGame(ctx context.Context, roomId string, hostName string) (*GameStartResponse, error) {
 	_, err := g.FindPlayerFromDB(ctx, hostName); if err != nil {
 		return nil, err 
 	}
-	
-	game, err := g.CreateGame(ctx, hostName); if err != nil {
+
+	game, err := g.GetGame(ctx, roomId); if err != nil {
+
+		// 기존 게임이 없으면 새로운 게임 생성
+		if err.Error() == redis.Nil.Error() {
+			newGame, err := g.CreateGame(ctx, hostName); if err != nil {
+				return nil, err 
+			}
+
+			// bigBlind, firstPlayer 등 세팅 
+			readyPlayers, err := setPlayers(newGame); if err != nil {
+				return nil, err 
+			}
+			fmt.Println("checkpoint2")
+			// 카드 분배
+			if err := giveCardsToPlayers(newGame); err != nil {
+				return nil, err 
+			}
+			fmt.Println("checkpoint3")
+			newGame.IsStarted = true 
+			
+			if err := g.SaveGame(ctx, newGame.RoomId.String(), newGame); err != nil {
+				return nil, err 
+			}
+			fmt.Println("checkpoint4")
+			firstPlayer := newGame.Players[newGame.FirstPlayerIdx].Nickname
+			smallBlind := newGame.Players[newGame.SmallBlindIdx].Nickname
+			bigBlind := newGame.Players[newGame.BigBlindIdx].Nickname
+			
+			
+			gameStartResponse := NewGameStartResponse(readyPlayers, firstPlayer, smallBlind, bigBlind)
+			return gameStartResponse, nil 
+		}
 		return nil, err 
 	}
 
-	// bigBlind, firstPlayer 등 세팅 
-	readyPlayers, err := setPlayers(game); if err != nil {
-		return nil, err 
+	// 아래는 기존 게임이 있는 경우 
+
+	var readyPlayers []string 
+	
+	for _, p := range game.GetReadyPlayers() {
+		readyPlayers = append(readyPlayers, p.Nickname)
 	}
 
-	// 카드 분배
-	if err := giveCardsToPlayers(game); err != nil {
-		return nil, err 
-	}
-
-	game.IsStarted = true 
-	
-	if err := g.SaveGame(ctx, game.RoomId.String(), game); err != nil {
-		return nil, err 
-	}
-
-	firstPlayer := game.Players[game.FirstPlayerIdx].Nickname
-	smallBlind := game.Players[game.SmallBlindIdx].Nickname
-	bigBlind := game.Players[game.BigBlindIdx].Nickname
-	
-	
-	gameStartResponse := NewGameStartResponse(readyPlayers, firstPlayer, smallBlind, bigBlind)
+	gameStartResponse := NewGameStartResponse(readyPlayers, game.GetFirstPlayer().Nickname, game.GetSmallBlind().Nickname, game.GetBigBlind().Nickname)
 	return gameStartResponse, nil 
 }
 

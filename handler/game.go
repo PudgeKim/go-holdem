@@ -15,12 +15,16 @@ type GameHandler struct {
 	gameService *service.GameService
 }
 
-func NewGameHandler(upgrader *websocket.Upgrader, chatService *service.ChatService) *GameHandler {
+func NewGameHandler(upgrader *websocket.Upgrader, chatService *service.ChatService, gameService *service.GameService) *GameHandler {
 	return &GameHandler{
 		upgrader: upgrader,
 		chatService: chatService,
-		//gameService: gameService,
+		gameService: gameService,
 	}
+}
+
+type ErrorResponse struct {
+	Error string `json:"error"`
 }
 
 type JoinRoomReq struct {
@@ -68,7 +72,7 @@ func (g *GameHandler) JoinRoom(c *gin.Context) {
 	go func ()  {
 		for {
 			chatMsg := <-chatChan
-			fmt.Println("chatMsg: ", chatMsg)
+			
 			if err := ws.WriteMessage(1, []byte(chatMsg)); err != nil {
 				panic(fmt.Sprintf("goroutine WriteMessage Err: %s", err.Error())) // panic은 임시용 (나중에 다른걸로 변경)
 			}
@@ -90,8 +94,19 @@ func (g *GameHandler) JoinRoom(c *gin.Context) {
 				fmt.Println("publishMsgErr: ", err.Error())
 				break 
 			}
-		case "bet":
-				
+		case "start":
+			res, err := g.gameService.StartGame(c, gameReq.RoomId, gameReq.Nickname); if err != nil {
+				errorResponse := ErrorResponse{Error: err.Error()}
+				if err := ws.WriteJSON(errorResponse); err != nil {
+					fmt.Println("GameStartWriteJsonErr1: ", err.Error())
+					break 
+				}
+			}
+			
+			if err := ws.WriteJSON(res); err != nil {
+				fmt.Println("GameStartWriteJsonErr2: ", err.Error())
+				break 
+			}
 		}
 		
 
