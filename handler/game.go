@@ -27,6 +27,32 @@ type ErrorResponse struct {
 	Error string `json:"error"`
 }
 
+type CreateGameReq struct {
+	Hostname string `json:"hostname" binding:"required"`
+	GameBalance uint64 `json:"game_balance" binding:"required"`
+}
+
+func (g *GameHandler) CreateGameRoom(c *gin.Context) {
+	var createGameReq CreateGameReq
+
+	if err := c.ShouldBindJSON(&createGameReq); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+	}
+
+	game, err := g.gameService.CreateGame(c, createGameReq.Hostname); if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": err.Error(),
+		})
+	}
+
+	c.JSON(http.StatusCreated, gin.H{
+		"room_id": game.RoomId.String(),
+		"hostname": game.HostName,
+	})
+}
+
 type JoinRoomReq struct {
 	RoomId string `uri:"roomid" binding:"required"`
 }
@@ -40,8 +66,11 @@ type GameReq struct {
 	Message string `json:"message"`
 	BetAmount  uint64 `json:"bet_amount"`
 	IsDead     bool `json:"is_dead"`
+	IsReady bool `json:"is_ready"`
 }
 
+// room에 들어가는 순간 websocket을 통해
+// ready, betting 등을 할 수 있음 
 func (g *GameHandler) JoinRoom(c *gin.Context) {
 	var joinRoomReq JoinRoomReq
 
@@ -92,20 +121,21 @@ func (g *GameHandler) JoinRoom(c *gin.Context) {
 			err := g.chatService.PublishMessage(c, gameReq.RoomId, gameReq.Nickname, gameReq.Message)
 			if err != nil {
 				fmt.Println("publishMsgErr: ", err.Error())
-				break 
 			}
 		case "start":
 			res, err := g.gameService.StartGame(c, gameReq.RoomId, gameReq.Nickname); if err != nil {
 				errorResponse := ErrorResponse{Error: err.Error()}
 				if err := ws.WriteJSON(errorResponse); err != nil {
 					fmt.Println("GameStartWriteJsonErr1: ", err.Error())
-					break 
 				}
 			}
 			
 			if err := ws.WriteJSON(res); err != nil {
 				fmt.Println("GameStartWriteJsonErr2: ", err.Error())
-				break 
+			}
+		case "ready":
+			if err := g.gameService.HandleReady(c, gameReq.RoomId, gameReq.Nickname, gameReq.IsReady); err != nil {
+				fmt.Println("Ready: ", err.Error())
 			}
 		}
 		

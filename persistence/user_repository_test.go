@@ -16,7 +16,8 @@ CREATE TABLE IF NOT EXISTS users (
 	id serial PRIMARY KEY,
     nickname text,
     email text,
-    balance bigint
+    balance bigint,
+	password text
 );
 `
 
@@ -59,7 +60,7 @@ func TestSaveUser(t *testing.T) {
 	userRepo := newUserRepo(db)
 	createTable(db)
 
-	user := entity.NewUser("kim", "kim@gmail.com")
+	user := entity.NewUser("kim", "kim@gmail.com", "mypassword")
 	if err := userRepo.Save(context.Background(), user); err != nil {
 		t.Error("user was not saved\n", err.Error())
 	}
@@ -72,9 +73,10 @@ func TestUpdateMultipleBalance(t *testing.T) {
 	userRepo := newUserRepo(db)
 	createTable(db)
 
-	user1 := entity.NewUser("kim", "kim@gmail.com")
+	user1 := entity.NewUser("kim", "kim@gmail.com",
+"mypassword")
 	userRepo.Save(context.Background(), user1)
-	user2 := entity.NewUser("han", "han@gmail.com")
+	user2 := entity.NewUser("han", "han@gmail.com", "mypassword")
 	userRepo.Save(context.Background(), user2)
 
 	var userIdWithBalances []repository.UserIdWithBalance

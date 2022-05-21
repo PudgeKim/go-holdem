@@ -2,12 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/PudgeKim/go-holdem/domain/entity"
 	"github.com/PudgeKim/go-holdem/domain/repository"
 	"github.com/PudgeKim/go-holdem/gameerror"
-	"github.com/go-redis/redis/v8"
 )
 type BetType string 
 const (
@@ -45,12 +43,21 @@ func (g *GameService) GetGame(ctx context.Context, roomId string) (*entity.Game,
 	return g.gameRepo.GetGame(ctx, roomId)
 }
 
-func (g *GameService) SaveGame(ctx context.Context, roomId string, game *entity.Game) error {
+func (g *GameService) saveGame(ctx context.Context, roomId string, game *entity.Game) error {
 	return g.gameRepo.SaveGame(ctx, roomId, game)
 }
 
-func (g *GameService) CreateGame(ctx context.Context, hostName string) (*entity.Game, error) {
-	return g.gameRepo.CreateGame(ctx, hostName)
+func (g *GameService) CreateGame(ctx context.Context, hostUser *entity.User, hostGameBalance uint64) (*entity.Game, error) {
+	hostPlayer := entity.NewPlayer(hostUser.Id, hostUser.Nickname, hostUser.Balance, hostGameBalance)
+	game, roomId, err := g.gameRepo.CreateGame(ctx, hostPlayer); if err != nil {
+		return nil, err 
+	}
+
+	if err := g.saveGame(ctx, roomId, game); err != nil {
+		return nil, err 
+	}
+
+	return game, nil 
 }
 
 func (g *GameService) DeleteGame(ctx context.Context, roomId string) error {
@@ -69,55 +76,28 @@ func (g *GameService) FindPlayerFromDB(ctx context.Context, nickname string) (*e
 }
 
 func (g *GameService) StartGame(ctx context.Context, roomId string, hostName string) (*GameStartResponse, error) {
-	_, err := g.FindPlayerFromDB(ctx, hostName); if err != nil {
-		return nil, err 
-	}
-
 	game, err := g.GetGame(ctx, roomId); if err != nil {
-
-		// 기존 게임이 없으면 새로운 게임 생성
-		if err.Error() == redis.Nil.Error() {
-			newGame, err := g.CreateGame(ctx, hostName); if err != nil {
-				return nil, err 
-			}
-
-			// bigBlind, firstPlayer 등 세팅 
-			readyPlayers, err := setPlayers(newGame); if err != nil {
-				return nil, err 
-			}
-			fmt.Println("checkpoint2")
-			// 카드 분배
-			if err := giveCardsToPlayers(newGame); err != nil {
-				return nil, err 
-			}
-			fmt.Println("checkpoint3")
-			newGame.IsStarted = true 
-			
-			if err := g.SaveGame(ctx, newGame.RoomId.String(), newGame); err != nil {
-				return nil, err 
-			}
-			fmt.Println("checkpoint4")
-			firstPlayer := newGame.Players[newGame.FirstPlayerIdx].Nickname
-			smallBlind := newGame.Players[newGame.SmallBlindIdx].Nickname
-			bigBlind := newGame.Players[newGame.BigBlindIdx].Nickname
-			
-			
-			gameStartResponse := NewGameStartResponse(readyPlayers, firstPlayer, smallBlind, bigBlind)
-			return gameStartResponse, nil 
-		}
 		return nil, err 
 	}
 
-	// 아래는 기존 게임이 있는 경우 
+	if game.IsStarted {
+		return nil, gameerror.AlreadyStarted
+	}
 
-	var readyPlayers []string 
+	game.StartGame()
+
+	if err := g.saveGame(ctx, roomId, game); err != nil {
+		return nil, err 
+	}
 	
+	var readyPlayers []string 
 	for _, p := range game.GetReadyPlayers() {
 		readyPlayers = append(readyPlayers, p.Nickname)
 	}
 
 	gameStartResponse := NewGameStartResponse(readyPlayers, game.GetFirstPlayer().Nickname, game.GetSmallBlind().Nickname, game.GetBigBlind().Nickname)
 	return gameStartResponse, nil 
+
 }
 
 func (g *GameService) HandleReady(ctx context.Context, roomId string, nickname string, isReady bool) error {
@@ -130,17 +110,16 @@ func (g *GameService) HandleReady(ctx context.Context, roomId string, nickname s
 		return gameerror.GameAlreadyStarted
 	}
 
-	p, err := findPlayer(nickname, game); if err != nil {
-		return err 
+	p := game.FindPlayer(nickname)
+	if p == nil {
+		return gameerror.NoPlayerExists
 	}
 
 	p.IsReady = isReady
 
-	if err := g.SaveGame(ctx, roomId, game); err != nil {
+	if err := g.saveGame(ctx, roomId, game); err != nil {
 		return err 
 	}
-
-	p.SetMemento()
 
 	return nil
 }
@@ -203,18 +182,11 @@ func (g *GameService) Bet(ctx context.Context, roomId string, betInfo BetInfo) (
 			}
 
 			betResponse.Winners = winnersName
+			
+			// 게임 초기화 
+			game.InitGame()
 
-			// 나간 플레이어들 빼줘야함
-			removeLeftPlayers(game)
-			if err != nil {
-				return nil, err 
-			}
-			// 베팅 값들 모두 초기화
-			clearPlayersCurrentBet(game.Players)
-
-			game.CurrentBet = 0
-			game.TotalBet = 0
-			if err := g.SaveGame(ctx, game.RoomId.String(), game); err != nil {
+			if err := g.saveGame(ctx, game.RoomId.String(), game); err != nil {
 				return nil, err 
 			}	
 		}
@@ -225,9 +197,9 @@ func (g *GameService) Bet(ctx context.Context, roomId string, betInfo BetInfo) (
 // handleBet 모든 플레이어들의 베팅이 종료되는 경우면 true를 리턴함
 // 다음 플레이어, 현재플레이어 isDead, 현재 플레이어의 currentBet, totalBet, 현재 게임의 currentBet, totalBet, 베팅종료, 에러 리턴
 func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity.Game, betInfo BetInfo) (string, bool, uint64, uint64, uint64, uint64, bool, error) {
-	p, err := findPlayer(betInfo.PlayerName, game)
-	if err != nil {
-		return "", false, 0, 0, 0, 0, false, err
+	p := game.FindPlayer(betInfo.PlayerName)
+	if p == nil {
+		return "", false, 0, 0, 0, 0, false, gameerror.NoPlayerExists
 	}
 
 	expectedPlayer := game.Players[game.CurrentPlayerIdx]
@@ -247,7 +219,7 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 	// 플레이어가 베팅하는 대신 죽은 경우
 	if betInfo.IsDead {
 		p.IsDead = true
-		nextPlayerIdx, err := getNextPlayerIdx(game)
+		nextPlayerIdx, err := game.GetNextPlayerIdx()
 		if err != nil {
 			return "", false, 0, 0, 0, 0, false, err
 		}
@@ -256,9 +228,6 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 	}
 
 	betType := getBetType(p, betInfo.BetAmount, game)
-	if err != nil {
-		return "", false, 0, 0, 0, 0, false, err
-	}
 	if betType == ALLIN {
 		p.IsAllIn = true
 	}
@@ -266,7 +235,7 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 	p.CurrentBet += betInfo.BetAmount
 	p.TotalBet += betInfo.BetAmount
 
-	nextPlayerIdx, err := getNextPlayerIdx(game)
+	nextPlayerIdx, err := game.GetNextPlayerIdx()
 	if err != nil {
 		return "", false, 0, 0, 0, 0, false, err
 	}
@@ -289,8 +258,9 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 		// 베팅 종료 조건 달성한 경우
 		if getReadyPlayerIdx(game.Players, currentPlayerIdx+1) == game.BetLeaderIdx {
 			game.CurrentPlayerIdx = game.FirstPlayerIdx // 다음 베팅을 위해서 초기화
-			clearPlayersCurrentBet(game.Players)
-			if err := g.SaveGame(ctx, game.RoomId.String(), game); err != nil {
+			game.ClearPlayersCurrentBet()
+			if err := g.saveGame(ctx, game.RoomId.String(), game); err != nil {
+				return "", false, 0, 0, 0, 0, false, err
 			}
 			return nextPlayerName, false, p.CurrentBet, p.TotalBet, game.CurrentBet, game.TotalBet, true, nil
 		}
@@ -298,7 +268,7 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 		// 베팅은 종료되지 않고 다음 플레이어가 베팅해야함
 		game.CurrentPlayerIdx = nextPlayerIdx
 
-		if err := g.SaveGame(ctx, game.RoomId.String(), game); err != nil {
+		if err := g.saveGame(ctx, game.RoomId.String(), game); err != nil {
 			return "", false, 0, 0, 0, 0, false, err
 		}
 
@@ -307,7 +277,7 @@ func (g *GameService) handleBet(ctx context.Context, roomId string, game *entity
 }
 
 func (g *GameService) distributeMoneyToWinners(game *entity.Game) (winners []*entity.Player, losers []*entity.Player) {
-	winners, losers, err := getWinnersAndLosers(game); if err != nil {
+	winners, losers, err := game.GetWinnersAndLosers(); if err != nil {
 		return nil, nil
 	}
 

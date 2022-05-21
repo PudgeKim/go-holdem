@@ -22,7 +22,7 @@ type Player struct {
 	BestCards    []card.Card    // 필드에 카드가 모두 오픈되었을 때 hands까지 합쳐서 가장 좋은 5장의 카드들
 }
 
-func New(id int64, nickname string, totalBalance, gameBalance uint64) *Player {
+func NewPlayer(id int64, nickname string, totalBalance, gameBalance uint64) *Player {
 	player :=  &Player{
 		Id: 			id,
 		Nickname:     nickname,

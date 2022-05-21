@@ -49,14 +49,14 @@ func (g *GameRepository) SaveGame(ctx context.Context, roomId string, game *enti
 	return nil 
 }
 
-func (g *GameRepository) CreateGame(ctx context.Context, hostName string) (*entity.Game, error) {
+func (g *GameRepository) CreateGame(ctx context.Context, hostPlayer *entity.Player) (*entity.Game, string, error) {
 	roomId, err := uuid.NewRandom()
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 
-	game := entity.NewGame(roomId, ROOM_LIMIT, hostName)
-	return game, nil 
+	game := entity.NewGame(roomId, ROOM_LIMIT, hostPlayer)
+	return game, roomId.String(), nil 
 }
 
 func (g *GameRepository) DeleteGame(ctx context.Context, roomId string) error {
@@ -82,8 +82,11 @@ func (g *GameRepository) FindPlayer(ctx context.Context, roomId string, nickname
 
 func (g *GameRepository) AddPlayer(ctx context.Context, roomId string, player *entity.Player) error {
 	game, err := g.GetGame(ctx, roomId)
-	// nil이면 플레이어가 이미 존재하는데 또 요청이 온 것
-	if err == nil {
+	if err != nil {
+		return err
+	}
+
+	if game.IsPlayerExist(player.Nickname) {
 		return gameerror.PlayerAlreadyExists
 	}
 
