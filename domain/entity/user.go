@@ -5,7 +5,7 @@ type User struct {
 	Nickname string `db:"nickname"`
 	Email string `db:"email"`
 	Balance uint64 `db:"balance"`
-	password string `db:"password"`
+	Password string `db:"password"`
 }
 
 func NewUser(nickname, email string, hashedPW string) *User {
@@ -13,10 +13,7 @@ func NewUser(nickname, email string, hashedPW string) *User {
 		Nickname: nickname,
 		Email: email,
 		Balance: 0,
-		password: hashedPW,
+		Password: hashedPW,
 	}
 }
 
-func (u User) GetPassword() string {
-	return u.password
-}

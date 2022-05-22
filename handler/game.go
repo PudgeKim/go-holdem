@@ -13,13 +13,15 @@ type GameHandler struct {
 	upgrader *websocket.Upgrader
 	chatService *service.ChatService
 	gameService *service.GameService
+	authService *service.AuthService
 }
 
-func NewGameHandler(upgrader *websocket.Upgrader, chatService *service.ChatService, gameService *service.GameService) *GameHandler {
+func NewGameHandler(upgrader *websocket.Upgrader, chatService *service.ChatService, gameService *service.GameService, authService *service.AuthService) *GameHandler {
 	return &GameHandler{
 		upgrader: upgrader,
 		chatService: chatService,
 		gameService: gameService,
+		authService: authService,
 	}
 }
 
@@ -28,7 +30,7 @@ type ErrorResponse struct {
 }
 
 type CreateGameReq struct {
-	Hostname string `json:"hostname" binding:"required"`
+	UserId int64 `json:"user_id" binding:"required"`
 	GameBalance uint64 `json:"game_balance" binding:"required"`
 }
 
@@ -41,7 +43,25 @@ func (g *GameHandler) CreateGameRoom(c *gin.Context) {
 		})
 	}
 
-	game, err := g.gameService.CreateGame(c, createGameReq.Hostname); if err != nil {
+	id, _ := c.Get("userId")
+	userId, _ := id.(int64)
+
+	if userId != createGameReq.UserId {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "user id in access token doesn't match to request's user id",
+		})
+		return 
+	}
+
+	user, err := g.authService.FindUser(c, createGameReq.UserId); if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+		return 
+	}
+
+
+	game, err := g.gameService.CreateGame(c, user, createGameReq.GameBalance); if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})

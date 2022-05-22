@@ -5,7 +5,7 @@ import (
 
 	"github.com/PudgeKim/go-holdem/domain/entity"
 	"github.com/PudgeKim/go-holdem/domain/repository"
-	"github.com/PudgeKim/go-holdem/gameerror"
+	"github.com/PudgeKim/go-holdem/errors/gameerror"
 )
 type BetType string 
 const (

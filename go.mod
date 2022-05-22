@@ -10,4 +10,5 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/jmoiron/sqlx v1.3.5
 	github.com/lib/pq v1.10.5
+	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9 // indirect
 )

@@ -9,6 +9,7 @@ import (
 	"github.com/PudgeKim/go-holdem/config"
 	"github.com/PudgeKim/go-holdem/domain/entity"
 	"github.com/PudgeKim/go-holdem/domain/repository"
+	"github.com/PudgeKim/go-holdem/errors/autherror"
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -49,7 +50,7 @@ func (a *AuthService) SignIn(ctx context.Context, email, password string) (strin
 		return "", err 
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(user.GetPassword()), []byte(password)); err != nil {
+	if err := bcrypt.CompareHashAndPassword([]byte(user.Password), []byte(password)); err != nil {
 		return "", err 
 	}
 
@@ -93,7 +94,7 @@ func (a *AuthService) ValidateToken(tokenString string) (int64, error) {
 		}
 		return userId ,nil 
 	}
-	return 0, errors.New("Invalid Token")
+	return 0, autherror.InvalidToken
 }
 
 type CustomClaims struct {

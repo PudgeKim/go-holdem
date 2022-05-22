@@ -2,7 +2,7 @@ package service
 
 import (
 	"github.com/PudgeKim/go-holdem/domain/entity"
-	"github.com/PudgeKim/go-holdem/gameerror"
+	"github.com/PudgeKim/go-holdem/errors/gameerror"
 )
 
 // 함수 인자로 들어온 인덱스에 해당하는 플레이어가 Ready 상태면 해당 인덱스를 리턴하고

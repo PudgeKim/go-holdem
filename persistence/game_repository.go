@@ -6,7 +6,7 @@ import (
 
 	"github.com/PudgeKim/go-holdem/domain/entity"
 	"github.com/PudgeKim/go-holdem/domain/repository"
-	"github.com/PudgeKim/go-holdem/gameerror"
+	"github.com/PudgeKim/go-holdem/errors/gameerror"
 	"github.com/go-redis/redis/v8"
 	"github.com/google/uuid"
 )
@@ -16,17 +16,17 @@ const (
 	REDIS_TIME_DURATION = time.Hour * 144
 )
 
-type GameRepository struct {
+type gameRepository struct {
 	redisClient *redis.Client
 }
 
 func NewGameRepository(redisClient *redis.Client) repository.GameRepository {
-	return &GameRepository{
+	return &gameRepository{
 		redisClient: redisClient,
 	}
 }
 
-func (g *GameRepository) GetGame(ctx context.Context, roomId string) (*entity.Game, error) {
+func (g *gameRepository) GetGame(ctx context.Context, roomId string) (*entity.Game, error) {
 	stringCmd := g.redisClient.Get(ctx, roomId)
 	if stringCmd.Err() != nil {
 		return nil, stringCmd.Err()
@@ -41,7 +41,7 @@ func (g *GameRepository) GetGame(ctx context.Context, roomId string) (*entity.Ga
 	return &game, nil 
 }
 
-func (g *GameRepository) SaveGame(ctx context.Context, roomId string, game *entity.Game) error {
+func (g *gameRepository) SaveGame(ctx context.Context, roomId string, game *entity.Game) error {
 	statusCmd := g.redisClient.Set(ctx, roomId, game, REDIS_TIME_DURATION)
 	if statusCmd.Err() != nil {
 		return statusCmd.Err()
@@ -49,7 +49,7 @@ func (g *GameRepository) SaveGame(ctx context.Context, roomId string, game *enti
 	return nil 
 }
 
-func (g *GameRepository) CreateGame(ctx context.Context, hostPlayer *entity.Player) (*entity.Game, string, error) {
+func (g *gameRepository) CreateGame(ctx context.Context, hostPlayer *entity.Player) (*entity.Game, string, error) {
 	roomId, err := uuid.NewRandom()
 	if err != nil {
 		return nil, "", err
@@ -59,7 +59,7 @@ func (g *GameRepository) CreateGame(ctx context.Context, hostPlayer *entity.Play
 	return game, roomId.String(), nil 
 }
 
-func (g *GameRepository) DeleteGame(ctx context.Context, roomId string) error {
+func (g *gameRepository) DeleteGame(ctx context.Context, roomId string) error {
 	cmd := g.redisClient.Del(ctx, roomId)
 	if cmd.Err() != nil {
 		return cmd.Err()
@@ -67,7 +67,7 @@ func (g *GameRepository) DeleteGame(ctx context.Context, roomId string) error {
 	return nil 
 }
 
-func (g *GameRepository) FindPlayer(ctx context.Context, roomId string, nickname string) (*entity.Player, error) {
+func (g *gameRepository) FindPlayer(ctx context.Context, roomId string, nickname string) (*entity.Player, error) {
 	game, err := g.GetGame(ctx, roomId); if err != nil {
 		return nil, err 
 	}
@@ -80,7 +80,7 @@ func (g *GameRepository) FindPlayer(ctx context.Context, roomId string, nickname
 	return nil, gameerror.NoPlayerExists
 }
 
-func (g *GameRepository) AddPlayer(ctx context.Context, roomId string, player *entity.Player) error {
+func (g *gameRepository) AddPlayer(ctx context.Context, roomId string, player *entity.Player) error {
 	game, err := g.GetGame(ctx, roomId)
 	if err != nil {
 		return err

@@ -6,8 +6,8 @@ import (
 	"sort"
 
 	"github.com/PudgeKim/go-holdem/card"
+	"github.com/PudgeKim/go-holdem/errors/gameerror"
 	"github.com/PudgeKim/go-holdem/gameconst"
-	"github.com/PudgeKim/go-holdem/gameerror"
 	"github.com/google/uuid"
 )
 
