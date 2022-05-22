@@ -45,15 +45,19 @@ func main() {
 	gameRepo := persistence.NewGameRepository(redisClient)
 	userRepo := persistence.NewUserRepository(db)
 
+	authService := service.NewAuthService(userRepo)
 	chatService := service.NewChatService(chatRepo)
 	gameService := service.NewGameService(userRepo, gameRepo)
 
 	upgrader := websocket.Upgrader{
 		CheckOrigin: func(r *http.Request) bool { return true },
 	}
-	gameHandler := handler.NewGameHandler(&upgrader, chatService, gameService)
 
-	myHandlers := handler.NewHandlers(gameHandler)
+	gameHandler := handler.NewGameHandler(&upgrader, chatService, gameService, authService)
+	authHandler := handler.NewAuthHandler(authService)
+	authMiddleware := handler.NewAuthMiddleware(authService)
+
+	myHandlers := handler.NewHandlers(gameHandler, authHandler, authMiddleware)
 
 	router := myHandlers.Routes()
 	router.Run(ServerAddress)
