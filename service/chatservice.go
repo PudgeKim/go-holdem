@@ -17,18 +17,18 @@ func NewChatService(chatRepo repository.ChatRepository) *ChatService {
 	}
 }
 
-func (c *ChatService) Subscribe(ctx context.Context, roomId string, chatChan chan string) error {
+func (c *ChatService) Subscribe(ctx context.Context, roomId string, userId int64, chatChan chan string) error {
 	subscribeChan := getSubscribeChan(roomId)
-	if err := c.chatRepo.Subscribe(ctx, subscribeChan, chatChan); err != nil {
+	if err := c.chatRepo.Subscribe(ctx, subscribeChan, userId, chatChan); err != nil {
 		return err 
 	}
 	
 	return nil 
 }
 
-func (c *ChatService) UnSubscribe(ctx context.Context, roomId string) error {
+func (c *ChatService) UnSubscribe(ctx context.Context, roomId string, userId int64) error {
 	subscribeChan := getSubscribeChan(roomId)
-	if err := c.chatRepo.UnSubscribe(ctx, subscribeChan); err != nil {
+	if err := c.chatRepo.UnSubscribe(ctx, subscribeChan, userId); err != nil {
 		return err 
 	}
 	return nil 

@@ -49,13 +49,13 @@ func (g *gameRepository) SaveGame(ctx context.Context, roomId string, game *enti
 	return nil 
 }
 
-func (g *gameRepository) CreateGame(ctx context.Context, hostPlayer *entity.Player) (*entity.Game, string, error) {
+func (g *gameRepository) CreateGame(ctx context.Context, hostPlayer *entity.Player, minBetAmount uint64) (*entity.Game, string, error) {
 	roomId, err := uuid.NewRandom()
 	if err != nil {
 		return nil, "", err
 	}
 
-	game := entity.NewGame(roomId, ROOM_LIMIT, hostPlayer)
+	game := entity.NewGame(roomId, ROOM_LIMIT, hostPlayer, minBetAmount)
 	return game, roomId.String(), nil 
 }
 
@@ -102,6 +102,8 @@ func (g *gameRepository) AddPlayer(ctx context.Context, roomId string, player *e
 
 	return nil
 }
+
+
 
 
 

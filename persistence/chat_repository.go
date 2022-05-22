@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 
 	"github.com/PudgeKim/go-holdem/domain/repository"
 	"github.com/go-redis/redis/v8"
@@ -13,24 +12,25 @@ import (
 type ChatRepository struct {
 	redisClient *redis.Client
 	pubsubMap map[string]*redis.PubSub
-	chatChanMap map[string][]chan string 
+	chatChanMap map[string]map[int64]chan string 
 }
 
 func NewChatRepository(redisClient *redis.Client) repository.ChatRepository {
 	return &ChatRepository{
 		redisClient: redisClient,
 		pubsubMap: make(map[string]*redis.PubSub),
-		chatChanMap: make(map[string][]chan string),
+		chatChanMap: make(map[string]map[int64]chan string),
 	}
 }
 
-func (c *ChatRepository) Subscribe(ctx context.Context, subscribeChan string, chatChan chan string) error {
+func (c *ChatRepository) Subscribe(ctx context.Context, subscribeChan string, userId int64, chatChan chan string) error {
 	if c.pubsubMap[subscribeChan] == nil {
 		pubsub := c.redisClient.Subscribe(ctx, subscribeChan)
 		c.pubsubMap[subscribeChan] = pubsub
 	}
 
-	c.chatChanMap[subscribeChan] = append(c.chatChanMap[subscribeChan], chatChan)
+	c.chatChanMap[subscribeChan] = make(map[int64]chan string)
+	c.chatChanMap[subscribeChan][userId] = chatChan
 	go c.handleMessage(subscribeChan)
 	return nil 
 }
@@ -41,19 +41,28 @@ func (c *ChatRepository) handleMessage(subscribeChan string) {
 	for msg := range ch {
 		// 같은 방안에 있는 사람들에게 broadcast 해줘야함 
 		for _, chatChan := range c.chatChanMap[subscribeChan] {
-			fmt.Println(msg.Payload, c.chatChanMap[subscribeChan])
 			chatChan <-msg.Payload
 		}
 		
 	}
 }
 
-func (c *ChatRepository) UnSubscribe(ctx context.Context, subscribeChan string) error {
+func (c *ChatRepository) UnSubscribe(ctx context.Context, subscribeChan string, userId int64) error {
 	pubsub := c.pubsubMap[subscribeChan]
 	if pubsub == nil {
 		return errors.New("Invalid subscribe channel")
 	}
-	pubsub.Close()
+
+	if len(c.chatChanMap[subscribeChan]) > 1 {
+		delete(c.chatChanMap[subscribeChan], userId)
+		return nil 
+	}
+
+	if len(c.chatChanMap[subscribeChan]) == 1{
+		delete(c.chatChanMap[subscribeChan], userId)
+		pubsub.Close()
+	}
+
 	return nil 
 }
 

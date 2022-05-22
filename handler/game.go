@@ -3,6 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
+	"strconv"
 
 	"github.com/PudgeKim/go-holdem/service"
 	"github.com/gin-gonic/gin"
@@ -32,6 +33,7 @@ type ErrorResponse struct {
 type CreateGameReq struct {
 	UserId int64 `json:"user_id" binding:"required"`
 	GameBalance uint64 `json:"game_balance" binding:"required"`
+	MinBetAmount uint64 `json:"min_bet_amount" binding:"required"`
 }
 
 func (g *GameHandler) CreateGameRoom(c *gin.Context) {
@@ -60,8 +62,7 @@ func (g *GameHandler) CreateGameRoom(c *gin.Context) {
 		return 
 	}
 
-
-	game, err := g.gameService.CreateGame(c, user, createGameReq.GameBalance); if err != nil {
+	game, err := g.gameService.CreateGame(c, user, createGameReq.GameBalance, createGameReq.MinBetAmount); if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
@@ -71,10 +72,6 @@ func (g *GameHandler) CreateGameRoom(c *gin.Context) {
 		"room_id": game.RoomId.String(),
 		"hostname": game.HostName,
 	})
-}
-
-type JoinRoomReq struct {
-	RoomId string `uri:"roomid" binding:"required"`
 }
 
 // Type이 Bet이냐 Chat이냐에 따라 
@@ -90,16 +87,25 @@ type GameReq struct {
 }
 
 // room에 들어가는 순간 websocket을 통해
-// ready, betting 등을 할 수 있음 
+// ready, betting(게임시작시) 등을 할 수 있음 
 func (g *GameHandler) JoinRoom(c *gin.Context) {
-	var joinRoomReq JoinRoomReq
-
-	if err := c.ShouldBindUri(&joinRoomReq); err != nil {
-		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
-			"error": "VALIDATEERR",
+	id, _ := c.Get("userId")
+	userId, _ := id.(int64)
+	userIdFromQuery, err := strconv.Atoi(c.Query("userId"))
+	if err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
 		})
 		return 
 	}
+	if userId != int64(userIdFromQuery) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "user id in access token doesn't match to request's user id",
+		})
+		return 
+	}
+
+	roomId := c.Query("roomId")
 
 	ws, err := g.upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
@@ -110,7 +116,7 @@ func (g *GameHandler) JoinRoom(c *gin.Context) {
 
 	chatChan := make(chan string)
 
-	if err := g.chatService.Subscribe(c, joinRoomReq.RoomId, chatChan); err != nil {
+	if err := g.chatService.Subscribe(c, roomId, userId, chatChan); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})

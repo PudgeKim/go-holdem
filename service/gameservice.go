@@ -47,9 +47,9 @@ func (g *GameService) saveGame(ctx context.Context, roomId string, game *entity.
 	return g.gameRepo.SaveGame(ctx, roomId, game)
 }
 
-func (g *GameService) CreateGame(ctx context.Context, hostUser *entity.User, hostGameBalance uint64) (*entity.Game, error) {
+func (g *GameService) CreateGame(ctx context.Context, hostUser *entity.User, hostGameBalance, minBetAmount uint64) (*entity.Game, error) {
 	hostPlayer := entity.NewPlayer(hostUser.Id, hostUser.Nickname, hostUser.Balance, hostGameBalance)
-	game, roomId, err := g.gameRepo.CreateGame(ctx, hostPlayer); if err != nil {
+	game, roomId, err := g.gameRepo.CreateGame(ctx, hostPlayer, minBetAmount); if err != nil {
 		return nil, err 
 	}
 
@@ -62,6 +62,18 @@ func (g *GameService) CreateGame(ctx context.Context, hostUser *entity.User, hos
 
 func (g *GameService) DeleteGame(ctx context.Context, roomId string) error {
 	return g.gameRepo.DeleteGame(ctx, roomId)
+}
+
+func (g *GameService) AddUserToGame(ctx context.Context, roomId string, user *entity.User, gameBalance uint64) error {
+	if user.Balance < gameBalance {
+		return gameerror.NotEnoughBalance
+	}
+	
+	player := entity.NewPlayer(user.Id, user.Nickname, user.Balance, gameBalance)
+	if err := g.gameRepo.AddPlayer(ctx, roomId, player); err != nil {
+		return err 
+	}
+	return nil 
 }
 
 func (g *GameService) FindPlayer(ctx context.Context, roomId string, nickname string) (*entity.Player, error) {
