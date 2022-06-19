@@ -8,6 +8,7 @@ import (
 	"github.com/PudgeKim/go-holdem/handler"
 	"github.com/PudgeKim/go-holdem/persistence"
 	"github.com/PudgeKim/go-holdem/service"
+
 	"github.com/gorilla/websocket"
 )
 
@@ -20,7 +21,8 @@ CREATE TABLE IF NOT EXISTS users (
 	id serial PRIMARY KEY,
     nickname text,
     email text,
-    balance bigint
+    balance bigint,
+	password text
 );
 `
 
@@ -34,9 +36,11 @@ func main() {
 		panic(err)
 	}
 
+	//db.MustExec(dropTableSchema)
 	db.MustExec(createTableSchema)
-	db.MustExec("INSERT INTO users (nickname, email, balance) VALUES ($1, $2, $3)", "john", "john@gmail.com", 10000)
-	db.MustExec("INSERT INTO users (nickname, email, balance) VALUES ($1, $2, $3)", "sarah", "sarah@gmail.com", 10000)
+	
+	// db.MustExec("INSERT INTO users (nickname, email, balance) VALUES ($1, $2, $3)", "john", "john@gmail.com", 10000)
+	// db.MustExec("INSERT INTO users (nickname, email, balance) VALUES ($1, $2, $3)", "sarah", "sarah@gmail.com", 10000)
 
 	redisClient := cacheserver.NewRedis()
 
@@ -60,5 +64,6 @@ func main() {
 	myHandlers := handler.NewHandlers(gameHandler, authHandler, authMiddleware)
 
 	router := myHandlers.Routes()
+
 	router.Run(ServerAddress)
 }

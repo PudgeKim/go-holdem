@@ -19,8 +19,8 @@ func NewAuthHandler(authService *service.AuthService) *AuthHandler {
 
 type SignUpReq struct {
 	Email string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,len=8"`
-	Nickname string `json:"nickname" binding:"required,len=2"`
+	Password string `json:"password" binding:"required,min=8"`
+	Nickname string `json:"nickname" binding:"required,min=2"`
 }
 
 func (a *AuthHandler) SignUp(c *gin.Context) {
@@ -47,7 +47,7 @@ func (a *AuthHandler) SignUp(c *gin.Context) {
 
 type SignInReq struct {
 	Email string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,len=8"`
+	Password string `json:"password" binding:"required,min=8"`
 }
 
 func (a *AuthHandler) SignIn(c *gin.Context) {
@@ -60,13 +60,15 @@ func (a *AuthHandler) SignIn(c *gin.Context) {
 		return 
 	}
 
-	token, err := a.authService.SignIn(c, signInReq.Email, signInReq.Password); if err != nil {
+	token, err := a.authService.SignIn(c, signInReq.Email, signInReq.Password)
+	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
 		return 
 	}
 
-	c.SetCookie("access_token", token, 3600, "/", "localhost", false, false)
+	c.SetCookie("access_token", token, 3600, "/", "127.0.0.1", false, true)
+	//c.SetCookie("access_token", token, 3600, "/", "localhost:7070", false, true)
 	c.Status(http.StatusOK)
 }

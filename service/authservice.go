@@ -46,7 +46,11 @@ func (a *AuthService) SignUp(ctx context.Context, email, password, nickname stri
 }
 
 func (a *AuthService) SignIn(ctx context.Context, email, password string) (string, error) {
-	user, err := a.userRepo.FindByEmail(ctx, email); if user != nil {
+	user, err := a.userRepo.FindByEmail(ctx, email)
+	if user == nil {
+		return "", autherror.UserNotFound
+	}
+	if err != nil {
 		return "", err 
 	}
 

@@ -50,7 +50,7 @@ func (r *userRepository) FindByEmail(ctx context.Context, email string) (*entity
 }
 
 func (r *userRepository) Save(ctx context.Context, user *entity.User) error {
-	if _, err := r.db.Exec(`INSERT INTO users (nickname, email, balance) VALUES ($1, $2, $3)`, user.Nickname, user.Email, 0); err != nil {
+	if _, err := r.db.Exec(`INSERT INTO users (nickname, email, balance, password) VALUES ($1, $2, $3, $4)`, user.Nickname, user.Email, 0, user.Password); err != nil {
 		return err 
 	}
 	return nil
