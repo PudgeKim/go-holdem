@@ -39,7 +39,7 @@ func (c *ChatRepository) handleMessage(subscribeChan string) {
 	pubsub := c.pubsubMap[subscribeChan]
 	ch := pubsub.Channel()
 	for msg := range ch {
-		// 같은 방안에 있는 사람들에게 broadcast 해줘야함 
+		// 같은 방안에 있는 사람들에게 broadcast 
 		for _, chatChan := range c.chatChanMap[subscribeChan] {
 			chatChan <-msg.Payload
 		}

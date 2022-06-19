@@ -16,11 +16,13 @@ func NewAuthMiddleware(authService *service.AuthService) *AuthMiddleware {
 }
 
 func (a *AuthMiddleware) ValidateToken(c *gin.Context) {
-	const BEARER_SCHEMA = "Bearer"
-	authHeader := c.GetHeader("Authorization")
-	tokenString := authHeader[len(BEARER_SCHEMA):]
+	token, err := c.Cookie("access_token"); if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
+			"error": err.Error(),
+		})
+	}
 
-	userId, err := a.authService.ValidateToken(tokenString); if err != nil {
+	userId, err := a.authService.ValidateToken(token); if err != nil {
 		c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"error": err.Error(),
 		})
